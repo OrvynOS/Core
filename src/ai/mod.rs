@@ -156,7 +156,7 @@ pub fn describe_ai_error(e: &Error) -> String {
         return match status {
             Some(401) | Some(403) => "The AI provider rejected the agent's API key. The creator needs to update it.".into(),
             Some(429) => "The AI provider is rate limiting the agent's key. Try again shortly.".into(),
-            Some(402) => "The agent's AI provider account is out of credits.".into(),
+            Some(402) => "The agent's AI account is out of credits. Add credits to keep it running.".into(),
             Some(404) => "The agent's AI model was not found. The creator needs to pick another model.".into(),
             Some(s) => format!("AI provider error ({s})."),
             None => "AI provider error (network).".into(),
@@ -173,6 +173,7 @@ async fn call_model(cfg: &ModelConfig, req: &Request<'_>, messages: &[Value], on
             let base = std::env::var(format!("ORVYN_AI_BASE_{}", cfg.provider.to_uppercase())).ok().filter(|v| !v.is_empty()).unwrap_or_else(|| base.to_string());
             openai::call(&base, cfg, &req.system, messages, req.tools, req.max_output_tokens, on_text).await
         }
+        providers::Wire::Orvyn => openai::call(&crate::inference::gateway_base(), cfg, &req.system, messages, req.tools, req.max_output_tokens, on_text).await,
         providers::Wire::Google => google::call(cfg, &req.system, messages, req.tools, req.max_output_tokens, on_text).await,
     }
 }

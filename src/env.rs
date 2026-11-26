@@ -76,6 +76,14 @@ pub struct Env {
     pub orvyn_admin_accounts: String,
     pub bliss_allow_private_urls: bool,
 
+    // Orvyn inference (chat and /v1/chat/completions, paid from credits)
+    /// The upstream multi-model key. Server-side only: never sent to the app or named in it.
+    pub openrouter_api_key: Option<String>,
+    /// Where credit deposits (BNB, USDT, USDC on BNB Chain) are sent.
+    pub orvyn_credits_address: Option<String>,
+    /// What people pay over the upstream cost (1.2 = 20% more).
+    pub inference_markup: f64,
+
     // Invoices
     pub orvyn_billing_entity: String,
     pub orvyn_billing_address: Option<String>,
@@ -275,6 +283,9 @@ impl Env {
             orvyn_shielded_pool: r.address("ORVYN_SHIELDED_POOL"),
             orvyn_admin_accounts: r.or("ORVYN_ADMIN_ACCOUNTS", ""),
             bliss_allow_private_urls: r.flag("BLISS_ALLOW_PRIVATE_URLS"),
+            openrouter_api_key: r.opt("OPENROUTER_API_KEY"),
+            orvyn_credits_address: r.address("ORVYN_CREDITS_ADDRESS"),
+            inference_markup: r.number("ORVYN_INFERENCE_MARKUP", 1.2, 1.0, 5.0),
             orvyn_billing_entity: r.or("ORVYN_BILLING_ENTITY", "Orvyn"),
             orvyn_billing_address: r.opt("ORVYN_BILLING_ADDRESS"),
             orvyn_billing_email: r.opt("ORVYN_BILLING_EMAIL"),

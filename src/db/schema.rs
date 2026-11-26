@@ -625,3 +625,29 @@ row!(BinanceConnection {
 row!(BinanceOauthState { state: String, account_id: String, agent_id: Option<String>, verifier_encrypted: String, return_to: Option<String>, expires_at: Time });
 
 row!(BinanceAgentOrder { id: i32, agent_id: String, tool: String, symbol: Option<String>, notional_usd: f64, created_at: Time });
+
+// ---- Orvyn inference: credits, API keys, chat ----
+
+row!(CreditEntry {
+    id: i32,
+    account_id: String,
+    /// deposit | usage | adjust
+    kind: String,
+    /// Signed: deposits add, usage takes away.
+    micro_usd: i64,
+    tx_hash: Option<String>,
+    token: Option<String>,
+    amount: Option<String>,
+    model: Option<String>,
+    /// chat | api | agent
+    source: Option<String>,
+    input_tokens: Option<i32>,
+    output_tokens: Option<i32>,
+    created_at: Time,
+});
+
+row!(InferenceKey { id: String, account_id: String, name: String, key_hash: String, hint: String, created_at: Time, last_used_at: Option<Time>, revoked_at: Option<Time> });
+
+row!(ChatThread { id: String, account_id: String, title: String, model: String, created_at: Time, updated_at: Time });
+
+row!(ChatTurnMessage { id: i32, thread_id: String, role: String, content: String, model: Option<String>, micro_usd: i64, input_tokens: Option<i32>, output_tokens: Option<i32>, created_at: Time });

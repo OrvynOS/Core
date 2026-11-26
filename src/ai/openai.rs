@@ -74,7 +74,11 @@ pub async fn call(base: &str, cfg: &ModelConfig, system: &str, messages: &[Value
     if !tools.is_empty() {
         body["tools"] = tools.iter().map(|t| json!({ "type": "function", "function": { "name": t.name, "description": t.description, "parameters": t.input_schema } })).collect::<Vec<_>>().into();
     }
-    let req = crate::http::client().post(format!("{base}/chat/completions")).bearer_auth(&cfg.api_key).timeout(std::time::Duration::from_secs(600)).json(&body);
+    let mut req = crate::http::client().post(format!("{base}/chat/completions")).bearer_auth(&cfg.api_key).timeout(std::time::Duration::from_secs(600)).json(&body);
+    if cfg.provider == "orvyn" {
+        // Shows as "Agent" usage on the owner's Credits page.
+        req = req.header("x-orvyn-source", "agent");
+    }
     let mut text = String::new();
     let mut calls: BTreeMap<u64, (String, String, String)> = BTreeMap::new();
     let mut out = StepOutput::default();

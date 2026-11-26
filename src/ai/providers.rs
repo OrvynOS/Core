@@ -15,6 +15,8 @@ pub enum Wire {
     /// OpenAI-style chat completions at this base URL.
     OpenAi(&'static str),
     Google,
+    /// Orvyn's own gateway (OpenAI-style, paid from the key owner's Orvyn credits).
+    Orvyn,
 }
 
 pub struct ProviderDef {
@@ -28,6 +30,7 @@ pub struct ProviderDef {
 const NEAR_AI_URL: &str = "https://cloud-api.near.ai/v1";
 
 pub static PROVIDERS: &[ProviderDef] = &[
+    ProviderDef { id: "orvyn", label: "Orvyn (pay with credits)", key_url: "https://app.orvyn.cash/credits", preferred_model: Some(crate::inference::DEFAULT_MODEL), wire: Wire::Orvyn },
     ProviderDef { id: "anthropic", label: "Anthropic (Claude)", key_url: "https://console.anthropic.com/settings/keys", preferred_model: Some("claude-opus-5"), wire: Wire::Anthropic },
     ProviderDef { id: "openai", label: "OpenAI", key_url: "https://platform.openai.com/api-keys", preferred_model: None, wire: Wire::OpenAi("https://api.openai.com/v1") },
     ProviderDef { id: "google", label: "Google Gemini", key_url: "https://aistudio.google.com/apikey", preferred_model: None, wire: Wire::Google },
@@ -163,6 +166,8 @@ pub async fn list_models(provider_id: &str, api_key: &str) -> Result<Vec<String>
             let rows = body["data"].as_array().cloned().unwrap_or_default();
             chat_models(rows.iter().filter(|m| m["supported_parameters"].as_array().is_some_and(|p| p.iter().any(|x| x == "tools"))).filter_map(|m| m["id"].as_str().map(String::from)))
         }
+        // An Orvyn API key (orv_sk_…): the gateway lists the models it serves.
+        "orvyn" => ids_of(&get_json(&format!("{}/models", crate::inference::gateway_base()), auth).await?),
         "deepseek" => chat_models(ids_of(&get_json("https://api.deepseek.com/models", auth).await?)),
         other => match provider(other)?.wire {
             Wire::OpenAi(base) => chat_models(ids_of(&get_json(&format!("{base}/models"), auth).await?)),

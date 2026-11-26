@@ -43,7 +43,7 @@ num-bigint = "0.4"
 x25519-dalek = { version = "2", features = ["static_secrets"] }
 hkdf = "0.12"
 chrono-tz = "0.10"
-orvyn-engine = { git = "https://github.com/OrvynOS/Engine", tag = "v0.1.0" }
+orvyn-engine = { git = "https://github.com/OrvynOS/Engine", tag = "v0.2.0" }
 orvyn-mcp = { path = "mcp" }
 oxc = { version = "0.160", features = ["transformer", "codegen", "semantic"] }
 unicode-normalization = "0.1"
