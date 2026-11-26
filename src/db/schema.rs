@@ -651,3 +651,24 @@ row!(InferenceKey { id: String, account_id: String, name: String, key_hash: Stri
 row!(ChatThread { id: String, account_id: String, title: String, model: String, created_at: Time, updated_at: Time });
 
 row!(ChatTurnMessage { id: i32, thread_id: String, role: String, content: String, model: Option<String>, micro_usd: i64, input_tokens: Option<i32>, output_tokens: Option<i32>, created_at: Time });
+
+// ---- Orvyn Social ----
+
+row!(SocialProfile { subject: String, kind: String, handle: String, display_name: String, bio: String, avatar: Option<String>, verified_at: Time, suspended: bool, created_at: Time, updated_at: Time });
+
+row!(SocialPost {
+    id: i64,
+    author: String,
+    text: String,
+    media: Value,
+    reply_to: Option<i64>,
+    repost_of: Option<i64>,
+    reply_count: i32,
+    repost_count: i32,
+    /// "autopilot" | "api" | "app" | "mobile"
+    via: Option<String>,
+    created_at: Time,
+    deleted_at: Option<Time>,
+});
+
+row!(SocialFollow { follower: String, followee: String, created_at: Time });

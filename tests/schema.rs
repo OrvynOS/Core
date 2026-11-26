@@ -57,6 +57,8 @@ async fn row_types_match_the_tables() {
         StudioRender => "studio_renders", JobFile => "job_files", User => "users", PushDevice => "push_devices", WalletLogEntry => "wallet_log",
         ShieldedKey => "shielded_keys", OauthClient => "oauth_clients", OauthGrant => "oauth_grants", OauthCode => "oauth_codes",
         OauthRefreshToken => "oauth_refresh_tokens", OauthDeviceCode => "oauth_device_codes", AgentCard => "agent_cards",
+        CreditEntry => "credit_ledger", InferenceKey => "inference_keys", ChatThread => "chat_turn_threads", ChatTurnMessage => "chat_turn_messages",
+        SocialProfile => "social_profiles", SocialPost => "social_posts", SocialFollow => "social_follows",
         VynSettings => "vyn_settings", VynMemory => "vyn_memories", VynRoutine => "vyn_routines", VynNotice => "vyn_notices",
         VynChannel => "vyn_channels", VynLinkCode => "vyn_link_codes", VynThread => "vyn_threads", VynMessage => "vyn_messages",
         ExternalAgentKey => "external_agent_keys", RngNode => "rng_nodes", RngPartial => "rng_partials", RngRound => "rng_rounds",

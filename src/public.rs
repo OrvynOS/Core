@@ -11,7 +11,7 @@ use crate::error::Result;
 
 pub const RESERVED_HANDLES: &[&str] = &[
     "www", "api", "app", "admin", "orvyn", "docs", "status", "mail", "email", "blog", "dashboard", "bliss", "registry", "swap", "help", "support", "static", "assets", "cdn", "dev",
-    "staging", "test", "auth", "login", "account", "accounts", "agents", "agent", "create", "new", "pay", "billing", "ops", "op1", "vyn", "reel", "studio", "engine", "postmaster",
+    "staging", "test", "auth", "login", "account", "accounts", "agents", "agent", "create", "new", "pay", "billing", "ops", "op1", "vyn", "reel", "studio", "engine", "social", "postmaster",
     "abuse", "dmarc", "hostmaster", "webmaster", "security", "bounces", "bounce", "mailer-daemon", "noreply", "no-reply", "info", "hello", "contact", "team", "smtp", "imap", "mx",
     "dkim", "spf",
 ];

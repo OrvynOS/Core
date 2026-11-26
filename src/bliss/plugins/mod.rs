@@ -9,6 +9,7 @@ pub mod network;
 pub mod orvynpay;
 pub mod perps;
 pub mod record;
+pub mod social;
 pub mod trader;
 pub mod work;
 
@@ -44,5 +45,6 @@ pub fn all() -> Vec<Arc<dyn Plugin>> {
         data::market_pulse(),
         markets::technical_analysis(),
         data::knowledge_base(),
+        social::social(),
     ]
 }

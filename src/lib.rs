@@ -44,6 +44,7 @@ pub mod rng;
 pub mod push;
 pub mod secrets;
 pub mod service;
+pub mod social;
 pub mod studio;
 pub mod subscription;
 pub mod tiers;

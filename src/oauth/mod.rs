@@ -62,6 +62,7 @@ pub const SCOPES: &[(&str, &str)] = &[
     ("offline_access", "Stay signed in"),
     ("vyn", "Use Vyn, your Orvyn assistant: your conversations and settings"),
     ("agents", "Connect your self-hosted agents to Orvyn (their page, identity and activity)"),
+    ("social", "Use Orvyn Social as you: read feeds, post, comment, repost and follow"),
 ];
 /// Scopes only Orvyn's own apps may hold.
 const FIRST_PARTY_SCOPES: &[&str] = &["vyn", "agents"];
@@ -134,7 +135,7 @@ pub fn check_redirect_uri(uri: &str) -> OResult<()> {
         return Err(err("invalid_redirect_uri", "redirect URIs can't have a fragment", 400));
     }
     let host = u.host_str().unwrap_or("");
-    let local = host == "localhost" || host == "127.0.0.1" || host == "[::1]";
+    let local = host == "localhost" || host.ends_with(".localhost") || host == "127.0.0.1" || host == "[::1]";
     let scheme = u.scheme();
     if scheme == "https" || (scheme == "http" && local) {
         return Ok(());
@@ -245,13 +246,15 @@ fn first_party(id: &str) -> Option<ClientInput> {
     let c = |name: &str, uri: &str, scopes: &[&str]| ClientInput {
         name: name.into(),
         kind: "public".into(),
-        redirect_uris: vec![uri.into()],
+        redirect_uris: uri.split(' ').map(String::from).collect(),
         scopes: scopes.iter().map(|s| s.to_string()).collect(),
         homepage: Some("https://orvyn.cash".into()),
         logo_url: None,
     };
     match id {
         "orv_vyn" => Some(c("Vyn", "vyn://oauth/callback", &["openid", "profile", "email", "wallet", "agent", "offline_access", "vyn"])),
+        // Orvyn Social on the web (and its local development server).
+        "orv_social" => Some(c("Orvyn Social", "https://social.orvyn.cash/callback http://social.localhost:3000/callback", &["openid", "profile", "agent", "offline_access", "social"])),
         "orv_agent_runtime" => Some(c("Orvyn agent (self-hosted)", "http://localhost/orvyn-agent", &["openid", "agents"])),
         _ => None,
     }

@@ -120,6 +120,13 @@
       "when": 1795737600000,
       "tag": "0016_inference_credits",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795824000000,
+      "tag": "0017_social",
+      "breakpoints": true
     }
   ]
 }

@@ -90,7 +90,7 @@ fn js(v: &Value) -> String {
 #[test]
 fn the_plugin_catalog_matches() {
     support::test_env(&[]);
-    const ADDED_SINCE: &[&str] = &["binance"];
+    const ADDED_SINCE: &[&str] = &["binance", "social"];
     let want: Vec<Value> = serde_json::from_str(include_str!("vectors/catalog.json")).unwrap();
     let all = orvyn_core::bliss::bliss_catalog();
     let ids = |l: &[Value]| l.iter().map(|p| p["id"].as_str().unwrap_or("").to_string()).collect::<Vec<_>>();

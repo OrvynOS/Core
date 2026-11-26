@@ -78,7 +78,8 @@
       "agent",
       "offline_access",
       "vyn",
-      "agents"
+      "agents",
+      "social"
     ],
     "response_types_supported": [
       "code"
