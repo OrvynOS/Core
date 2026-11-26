@@ -45,7 +45,7 @@
       ]
     },
     {
-      "name": "Approvals to Permit2, the registry and trading venues",
+      "name": "Approvals: Permit2, registry, trading venues",
       "method": "eth_signTransaction",
       "action": "ALLOW",
       "conditions": [
@@ -116,7 +116,7 @@
       ]
     },
     {
-      "name": "Token withdrawals (owner-signed, checked by Orvyn)",
+      "name": "Token withdrawals (owner-signed, Orvyn-checked)",
       "method": "eth_signTransaction",
       "action": "ALLOW",
       "conditions": [
@@ -134,9 +134,9 @@
         },
         {
           "field_source": "ethereum_calldata",
-          "field": "transfer.to",
-          "operator": "starts_with",
-          "value": "0x",
+          "field": "transfer.amount",
+          "operator": "gte",
+          "value": "0",
           "abi": [
             {
               "name": "transfer",
@@ -204,7 +204,7 @@
       ]
     },
     {
-      "name": "Aster account actions (approve its API wallet, withdraw to itself)",
+      "name": "Aster account actions (API wallet, withdraw)",
       "method": "eth_signTypedData_v4",
       "action": "ALLOW",
       "conditions": [
@@ -223,7 +223,7 @@
       ]
     },
     {
-      "name": "Short messages (OrvynID proofs, four.meme sign-in)",
+      "name": "Short messages (OrvynID, four.meme sign-in)",
       "method": "personal_sign",
       "action": "ALLOW",
       "conditions": [

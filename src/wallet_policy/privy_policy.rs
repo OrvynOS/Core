@@ -88,13 +88,16 @@ pub fn agent_policy_rules() -> Vec<Value> {
     );
     let mut approve = cond("ethereum_calldata", "approve.spender", "in", json!(spenders));
     approve["abi"] = abi("approve", "spender", "amount");
-    let mut transfer = cond("ethereum_calldata", "transfer.to", "starts_with", json!("0x"));
+    // Any `transfer` call (Privy only allows eq / in on an address field, so match the amount):
+    // the recipient is the owner's withdrawal address, which the guard checks.
+    let mut transfer = cond("ethereum_calldata", "transfer.amount", "gte", json!("0"));
     transfer["abi"] = abi("transfer", "to", "amount");
     let no_value = || cond("ethereum_transaction", "value", "eq", json!("0"));
     vec![
         rule("Orvyn contracts and trading venues", "eth_signTransaction", vec![on_bsc(), cond("ethereum_transaction", "to", "in", json!(contracts))]),
-        rule("Approvals to Permit2, the registry and trading venues", "eth_signTransaction", vec![on_bsc(), no_value(), approve]),
-        rule("Token withdrawals (owner-signed, checked by Orvyn)", "eth_signTransaction", vec![on_bsc(), no_value(), transfer]),
+        // Privy rule names are under 50 characters.
+        rule("Approvals: Permit2, registry, trading venues", "eth_signTransaction", vec![on_bsc(), no_value(), approve]),
+        rule("Token withdrawals (owner-signed, Orvyn-checked)", "eth_signTransaction", vec![on_bsc(), no_value(), transfer]),
         rule("BNB withdrawals (owner-signed, checked by Orvyn)", "eth_signTransaction", vec![on_bsc(), cond("ethereum_transaction", "data_byte_length", "eq", json!("0"))]),
         rule(
             "x402 payments (Permit2 on BNB Chain)",
@@ -102,11 +105,11 @@ pub fn agent_policy_rules() -> Vec<Value> {
             vec![cond("ethereum_typed_data_domain", "chainId", "eq", json!("56")), cond("ethereum_typed_data_domain", "verifyingContract", "in", json!(both([Some(PERMIT2)])))],
         ),
         rule(
-            "Aster account actions (approve its API wallet, withdraw to itself)",
+            "Aster account actions (API wallet, withdraw)",
             "eth_signTypedData_v4",
             vec![cond("ethereum_typed_data_domain", "chainId", "eq", json!(ACCOUNT_CHAIN_ID.to_string())), cond("ethereum_typed_data_domain", "verifyingContract", "eq", json!(ZERO))],
         ),
-        rule("Short messages (OrvynID proofs, four.meme sign-in)", "personal_sign", vec![cond("message", "byte_length", "lte", json!("4096"))]),
+        rule("Short messages (OrvynID, four.meme sign-in)", "personal_sign", vec![cond("message", "byte_length", "lte", json!("4096"))]),
     ]
 }
 

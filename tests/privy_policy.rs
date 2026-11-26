@@ -1,4 +1,5 @@
-//! Orvyn's Privy wallet policies are the TypeScript core's, rule for rule (vectors/privy-policy.json,
+//! Orvyn's Privy wallet policies, rule for rule (vectors/privy-policy.json: the TypeScript core's, with the
+//! rule names shortened and the transfer rule matched on its amount, as Privy's API requires;
 //! made with the same contract addresses as the wallet-policy vectors).
 
 use orvyn_core::wallet_policy::config;
