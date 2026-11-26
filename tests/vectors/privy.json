@@ -1,0 +1,91 @@
+{
+  "key": "wallet-auth:MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg3I//uYA49dnBSNeFHXFAHzPBbMyecLtvBmHPVZC7ym6hRANCAARYsrFBwzA6R/YQOCBzmWcUiAD2lnJCHIrf2fOO9ldz6PAivZGDOWTNFz06te/HAb1jV0hKdzvwy16WZNoPJwib",
+  "cases": [
+    {
+      "input": {
+        "version": 1,
+        "method": "POST",
+        "url": "https://api.privy.io/v1/wallets/wal_123/rpc",
+        "body": {
+          "method": "personal_sign",
+          "chain_type": "ethereum",
+          "params": {
+            "message": "hello ✓",
+            "encoding": "utf-8"
+          }
+        },
+        "headers": {
+          "privy-app-id": "app_1",
+          "privy-request-expiry": "1795000900000"
+        }
+      },
+      "canonical": "{\"body\":{\"chain_type\":\"ethereum\",\"method\":\"personal_sign\",\"params\":{\"encoding\":\"utf-8\",\"message\":\"hello ✓\"}},\"headers\":{\"privy-app-id\":\"app_1\",\"privy-request-expiry\":\"1795000900000\"},\"method\":\"POST\",\"url\":\"https://api.privy.io/v1/wallets/wal_123/rpc\",\"version\":1}",
+      "signature": "MEQCICj3x5AuuDpughDJpUWh02/82IluLRgzJQlZGDQEa8eyAiAXl3xSNDZHVmceCl8zHMpoc4YoNA+hORFxm7brBKjQaQ=="
+    },
+    {
+      "input": {
+        "version": 1,
+        "method": "POST",
+        "url": "https://api.privy.io/v1/wallets/wal_123/rpc",
+        "body": {
+          "method": "eth_signTransaction",
+          "chain_type": "ethereum",
+          "params": {
+            "transaction": {
+              "type": 2,
+              "to": "0x1234567890123456789012345678901234567890",
+              "nonce": 7,
+              "chain_id": 56,
+              "data": "0xabcd",
+              "value": "0xde0b6b3a7640000",
+              "gas_limit": "0x5208",
+              "max_fee_per_gas": "0x3b9aca00",
+              "max_priority_fee_per_gas": "0x3b9aca00"
+            }
+          }
+        },
+        "headers": {
+          "privy-app-id": "app_1",
+          "privy-request-expiry": "1795000900000"
+        }
+      },
+      "canonical": "{\"body\":{\"chain_type\":\"ethereum\",\"method\":\"eth_signTransaction\",\"params\":{\"transaction\":{\"chain_id\":56,\"data\":\"0xabcd\",\"gas_limit\":\"0x5208\",\"max_fee_per_gas\":\"0x3b9aca00\",\"max_priority_fee_per_gas\":\"0x3b9aca00\",\"nonce\":7,\"to\":\"0x1234567890123456789012345678901234567890\",\"type\":2,\"value\":\"0xde0b6b3a7640000\"}}},\"headers\":{\"privy-app-id\":\"app_1\",\"privy-request-expiry\":\"1795000900000\"},\"method\":\"POST\",\"url\":\"https://api.privy.io/v1/wallets/wal_123/rpc\",\"version\":1}",
+      "signature": "MEYCIQCh1o/sAjB5VNjm4aj+OYESI9eo0+jyZWCZgppkS5Nv7AIhAPyX20qSPNI/6u8U1x2A4triVivLvIE4y9inxvfUQRpI"
+    },
+    {
+      "input": {
+        "version": 1,
+        "method": "POST",
+        "url": "https://api.privy.io/v1/wallets",
+        "body": {
+          "chain_type": "ethereum",
+          "owner_id": "kq_1",
+          "policy_ids": [
+            "pol_1"
+          ],
+          "display_name": "Orvyn agent a1",
+          "external_id": "orvyn-agent-a1"
+        },
+        "headers": {
+          "privy-app-id": "app_1",
+          "privy-idempotency-key": "orvyn-agent-a1"
+        }
+      },
+      "canonical": "{\"body\":{\"chain_type\":\"ethereum\",\"display_name\":\"Orvyn agent a1\",\"external_id\":\"orvyn-agent-a1\",\"owner_id\":\"kq_1\",\"policy_ids\":[\"pol_1\"]},\"headers\":{\"privy-app-id\":\"app_1\",\"privy-idempotency-key\":\"orvyn-agent-a1\"},\"method\":\"POST\",\"url\":\"https://api.privy.io/v1/wallets\",\"version\":1}",
+      "signature": "MEUCIEVUkPU5wv7VeuZDQTkiJJh9ij2fr8VfsAJ0JoRBNZx3AiEAoqwvCB/lCu26klsW3PSb9xOEA6YMpsX37CTlt9czNdU="
+    },
+    {
+      "input": {
+        "version": 1,
+        "method": "PATCH",
+        "url": "https://api.privy.io/v1/wallets/wal_123/rpc",
+        "body": {},
+        "headers": {
+          "privy-app-id": "app_1"
+        }
+      },
+      "canonical": "{\"body\":\"\",\"headers\":{\"privy-app-id\":\"app_1\"},\"method\":\"PATCH\",\"url\":\"https://api.privy.io/v1/wallets/wal_123/rpc\",\"version\":1}",
+      "signature": "MEYCIQC0YBzuBi8GYYfreRQyFME6Rti1ZV2mLz2n503lRHDj8wIhAILVXxO6z78bS+Nbdr59dLUfFJAAfR1t1KkGYtPMLwff"
+    }
+  ]
+}

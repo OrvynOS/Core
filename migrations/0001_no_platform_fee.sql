@@ -1,0 +1,1 @@
+ALTER TABLE "agents" DROP COLUMN "orvyn_fee_owed_wei";

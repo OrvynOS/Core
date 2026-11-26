@@ -1,0 +1,70 @@
+[package]
+name = "orvyn-core"
+version = "0.1.0"
+description = "Orvyn's backend core in Rust: settings, database and migrations, secrets, auth, wallets and the wallet policy, agents, Vyn, games, Studio, payments."
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/OrvynOS/Core"
+publish = false
+
+[dependencies]
+anyhow = "1"
+base64 = "0.22"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = "2"
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "process", "io-util", "signal", "fs"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "chrono", "json", "macros", "migrate"] }
+chrono = { version = "0.4", features = ["serde"] }
+aes-gcm = "0.10"
+sha2 = "0.10"
+hmac = "0.12"
+rand = "0.9"
+hex = "0.4"
+regex = "1"
+async-trait = "0.1"
+jsonwebtoken = { version = "10", default-features = false, features = ["rust_crypto", "use_pem"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream", "multipart"] }
+futures-util = "0.3"
+alloy = { version = "2", default-features = false, features = ["std", "providers", "provider-http", "reqwest-rustls-tls", "sol-types", "contract", "rpc-types", "network", "consensus", "eips", "signers", "signer-local", "dyn-abi", "eip712"] }
+p256 = { version = "0.13", features = ["ecdsa", "pkcs8", "pem"] }
+rsa = { version = "0.9", features = ["sha2"] }
+blst = "0.3"
+light-poseidon = "0.5"
+ark-circom = "0.6"
+ark-groth16 = "0.6"
+ark-bn254 = "0.6"
+ark-ec = "0.6"
+ark-ff = "0.6"
+ark-std = "0.6"
+wasmer = "6.1"
+num-bigint = "0.4"
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+hkdf = "0.12"
+chrono-tz = "0.10"
+orvyn-engine = { git = "https://github.com/OrvynOS/Engine", tag = "v0.1.0" }
+orvyn-mcp = { path = "mcp" }
+oxc = { version = "0.160", features = ["transformer", "codegen", "semantic"] }
+unicode-normalization = "0.1"
+
+[build-dependencies]
+serde_json = "1"
+
+[dev-dependencies]
+postgresql_embedded = { version = "0.22", features = ["tokio"] }
+axum = "0.8"
+tokio-tungstenite = "0.26"
+
+[profile.release]
+lto = "thin"
+
+# Line tables only for this crate, no debug info for dependencies (a small target/).
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+[workspace]
+members = ["admin", "mcp"]

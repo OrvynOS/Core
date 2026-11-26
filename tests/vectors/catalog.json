@@ -1,0 +1,985 @@
+[
+  {
+    "id": "trader",
+    "name": "Trader",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "capability",
+    "summary": "Buys and sells BNB Chain tokens on four.meme, Flap, PancakeSwap and Uniswap, within your limits.",
+    "description": "The agent trades from its own wallet on autopilot: four.meme and Flap while a token is on its bonding curve, PancakeSwap or Uniswap once it graduates. Transactions are built by Orvyn's open-source trading MCP servers and checked again before the agent signs: only the venue's contracts, output to the agent's wallet, exact approvals, and BNB within your per-trade and daily limits. Buys spend this plugin's budget (its share of tax income); sells credit the BNB back.",
+    "permissions": [
+      "trade",
+      "spend-bnb",
+      "read-market-data"
+    ],
+    "settings": [
+      {
+        "key": "feeSharePct",
+        "label": "Share of tax income for trading",
+        "type": "number",
+        "default": 40,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%"
+      },
+      {
+        "key": "maxTradeBnb",
+        "label": "Max BNB per buy",
+        "type": "number",
+        "default": 0.05,
+        "min": 0.001,
+        "max": 5,
+        "step": 0.001,
+        "unit": "BNB"
+      },
+      {
+        "key": "maxTradesPerDay",
+        "label": "Max trades per day",
+        "type": "number",
+        "default": 10,
+        "min": 1,
+        "max": 100,
+        "step": 1
+      },
+      {
+        "key": "maxSlippagePct",
+        "label": "Max slippage",
+        "type": "number",
+        "default": 5,
+        "min": 0.1,
+        "max": 30,
+        "step": 0.1,
+        "unit": "%",
+        "help": "Tax tokens need their tax on top."
+      },
+      {
+        "key": "venues",
+        "label": "Venues",
+        "type": "list",
+        "default": [
+          "fourmeme",
+          "flap",
+          "pancakeswap",
+          "uniswap"
+        ],
+        "maxItems": 4,
+        "help": "fourmeme, flap, pancakeswap, uniswap"
+      },
+      {
+        "key": "ownToken",
+        "label": "The agent's own token",
+        "type": "select",
+        "default": "never",
+        "options": [
+          {
+            "value": "never",
+            "label": "Never trade it"
+          },
+          {
+            "value": "buy-only",
+            "label": "May buy it back, never sell"
+          }
+        ]
+      }
+    ],
+    "defaults": {
+      "feeSharePct": 40,
+      "maxTradeBnb": 0.05,
+      "maxTradesPerDay": 10,
+      "maxSlippagePct": 5,
+      "venues": [
+        "fourmeme",
+        "flap",
+        "pancakeswap",
+        "uniswap"
+      ],
+      "ownToken": "never"
+    },
+    "hasFeeShare": true,
+    "hasAutopilot": true,
+    "thirdParty": null
+  },
+  {
+    "id": "automation",
+    "name": "Automation",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "capability",
+    "summary": "Standing orders: DCA buys on a schedule and price-triggered buys or sells, executed through Trader within its limits.",
+    "description": "The agent sets rules once and Orvyn carries them out every minute without the model: buy a fixed amount every N hours (DCA), or buy, or sell a share of a holding, when a token crosses a price. Every execution goes through the Trader plugin, so its per-buy and daily limits, budget, simulation and the wallet policy all apply. Needs Trader installed.",
+    "permissions": [
+      "trade",
+      "spend-bnb",
+      "read-market-data"
+    ],
+    "settings": [
+      {
+        "key": "maxRules",
+        "label": "Max active rules",
+        "type": "number",
+        "default": 10,
+        "min": 1,
+        "max": 50,
+        "step": 1
+      }
+    ],
+    "defaults": {
+      "maxRules": 10
+    },
+    "hasFeeShare": false,
+    "hasAutopilot": true,
+    "thirdParty": null
+  },
+  {
+    "id": "venus",
+    "name": "Venus Lending",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "capability",
+    "summary": "Earn interest on idle USDT, USDC or BNB by supplying it to Venus, and take it back any time. Supply only: no borrowing.",
+    "description": "The agent supplies idle USDT, USDC or BNB to Venus, BNB Chain's largest lending market, and withdraws it when it needs it. It never borrows and never enables collateral, so a position can't be liquidated. The wallet policy only allows supplying and withdrawing on these three markets, with daily caps; withdrawals always return to the agent. Stablecoins come from the agent's wallet; BNB from this plugin's share of income.",
+    "permissions": [
+      "spend-bnb",
+      "read-market-data"
+    ],
+    "settings": [
+      {
+        "key": "assets",
+        "label": "Assets",
+        "type": "list",
+        "default": [
+          "USDT",
+          "USDC"
+        ],
+        "maxItems": 3,
+        "help": "USDT, USDC, BNB"
+      },
+      {
+        "key": "maxSupplyUsd",
+        "label": "Max per stablecoin supply",
+        "type": "number",
+        "default": 500,
+        "min": 1,
+        "max": 100000,
+        "step": 1,
+        "unit": "USD"
+      },
+      {
+        "key": "maxSupplyBnb",
+        "label": "Max per BNB supply",
+        "type": "number",
+        "default": 0.1,
+        "min": 0.001,
+        "max": 50,
+        "step": 0.001,
+        "unit": "BNB"
+      },
+      {
+        "key": "feeSharePct",
+        "label": "Share of tax income for lending BNB",
+        "type": "number",
+        "default": 0,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%"
+      }
+    ],
+    "defaults": {
+      "assets": [
+        "USDT",
+        "USDC"
+      ],
+      "maxSupplyUsd": 500,
+      "maxSupplyBnb": 0.1,
+      "feeSharePct": 0
+    },
+    "hasFeeShare": true,
+    "hasAutopilot": true,
+    "thirdParty": null
+  },
+  {
+    "id": "aster",
+    "name": "Perps on Aster",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "capability",
+    "summary": "Trades perpetual futures on Aster with leverage, a stop-loss on every position, and your limits.",
+    "description": "The agent funds an Aster futures account from this plugin's share of tax income (BNB swapped to USDT on PancakeSwap), then opens and closes long or short positions on the markets you allow. Every position gets a stop-loss on Aster itself the moment it opens. The agent's Aster API key is a separate Privy wallet that can trade perps but never withdraw; withdrawals only return USDT to the agent's own wallet. Leverage, position size, margin and trades per day stay within your limits, and Orvyn's wallet policy caps leverage and order size again before anything is signed.",
+    "permissions": [
+      "trade",
+      "spend-bnb",
+      "read-market-data",
+      "third-party"
+    ],
+    "settings": [
+      {
+        "key": "feeSharePct",
+        "label": "Share of tax income for perps",
+        "type": "number",
+        "default": 20,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "unit": "%"
+      },
+      {
+        "key": "symbols",
+        "label": "Markets",
+        "type": "list",
+        "default": [
+          "BTCUSDT",
+          "ETHUSDT",
+          "BNBUSDT"
+        ],
+        "maxItems": 10,
+        "uppercase": true,
+        "help": "Aster perp symbols, e.g. BTCUSDT"
+      },
+      {
+        "key": "maxLeverage",
+        "label": "Max leverage",
+        "type": "number",
+        "default": 3,
+        "min": 1,
+        "max": 10,
+        "step": 1,
+        "unit": "x"
+      },
+      {
+        "key": "maxPositionUsd",
+        "label": "Max position size",
+        "type": "number",
+        "default": 100,
+        "min": 10,
+        "max": 5000,
+        "step": 10,
+        "unit": "USD",
+        "help": "Notional per market"
+      },
+      {
+        "key": "maxMarginUsd",
+        "label": "Max USDT in Aster",
+        "type": "number",
+        "default": 200,
+        "min": 10,
+        "max": 10000,
+        "step": 10,
+        "unit": "USD"
+      },
+      {
+        "key": "stopLossPct",
+        "label": "Widest stop-loss",
+        "type": "number",
+        "default": 10,
+        "min": 1,
+        "max": 50,
+        "step": 0.5,
+        "unit": "%",
+        "help": "Every position gets a stop at most this far from entry"
+      },
+      {
+        "key": "maxTradesPerDay",
+        "label": "Max trades per day",
+        "type": "number",
+        "default": 10,
+        "min": 1,
+        "max": 50,
+        "step": 1
+      }
+    ],
+    "defaults": {
+      "feeSharePct": 20,
+      "symbols": [
+        "BTCUSDT",
+        "ETHUSDT",
+        "BNBUSDT"
+      ],
+      "maxLeverage": 3,
+      "maxPositionUsd": 100,
+      "maxMarginUsd": 200,
+      "stopLossPct": 10,
+      "maxTradesPerDay": 10
+    },
+    "hasFeeShare": true,
+    "hasAutopilot": true,
+    "thirdParty": null
+  },
+  {
+    "id": "track-record",
+    "name": "Track Record",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "capability",
+    "summary": "Every market call the agent makes is logged and graded by code against the real price: hit rate and calibration, public.",
+    "description": "The agent logs each view it forms (a token or coin, up, down or flat, over a horizon, with how sure it is and why). The entry price is taken at that moment; when the horizon ends, Orvyn prices it again and grades it. Hit rate, calibration (Brier score) and recent misses go back into the agent's instructions so it calibrates instead of repeating reasoning that failed, and the record is shown on its public page. The agent can't edit or delete a call.",
+    "permissions": [
+      "read-market-data"
+    ],
+    "settings": [],
+    "defaults": {},
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  },
+  {
+    "id": "opinion",
+    "name": "Prediction markets (Opinion)",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "data",
+    "summary": "Live odds from Opinion, BNB Chain's prediction market: markets, prices, order books.",
+    "description": "Lets the agent browse Opinion's prediction markets on BNB Chain and read each market's rules, current Yes/No prices (the market's implied probability), order book and price history. Read-only: the agent doesn't trade on Opinion.",
+    "permissions": [
+      "read-market-data",
+      "third-party"
+    ],
+    "settings": [
+      {
+        "key": "maxResults",
+        "label": "Markets per search",
+        "type": "number",
+        "default": 10,
+        "min": 1,
+        "max": 20,
+        "step": 1
+      }
+    ],
+    "defaults": {
+      "maxResults": 10
+    },
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  },
+  {
+    "id": "polymarket",
+    "name": "Polymarket",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "data",
+    "summary": "Live odds, liquidity and price history from Polymarket, the deepest prediction market. Read-only.",
+    "description": "Search Polymarket's markets and read their implied probabilities, 24h moves, spreads, liquidity and price history. Useful as crowd-priced evidence about elections, rates, crypto prices and events, and to compare with Opinion on BNB Chain. Read-only: the agent doesn't trade on Polymarket.",
+    "permissions": [
+      "read-market-data",
+      "third-party"
+    ],
+    "settings": [],
+    "defaults": {},
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  },
+  {
+    "id": "derivatives-data",
+    "name": "Derivatives Data",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "data",
+    "summary": "Funding rates, open interest and long/short ratios from Binance and Aster futures: the crowding behind a move.",
+    "description": "Reads the public futures data of Binance and Aster: funding now and its 3-day average (per 8h and annualised), basis, open interest and its 24h change, and the long/short account ratio. A funding scan finds the most crowded longs and shorts across the market. Read-only; for trading perps install Perps on Aster.",
+    "permissions": [
+      "read-market-data",
+      "third-party"
+    ],
+    "settings": [],
+    "defaults": {},
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  },
+  {
+    "id": "price-feeds",
+    "name": "Price Feeds",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "data",
+    "summary": "One price from many sources side by side: Chainlink, Pyth, Binance, OKX, Coinbase, CoinGecko, and PancakeSwap and Uniswap TWAPs, with a median.",
+    "description": "Prices an asset from independent sources at once: the Chainlink and Pyth oracles, the Binance, OKX and Coinbase exchanges, CoinGecko, and PancakeSwap v3 and Uniswap v3 on BNB Chain, read from the pools as a 30-minute time-weighted average. It shows the median, how far each source is from it, outliers, staleness and the spread. Any BNB Chain token works by address (DEX TWAPs and DexScreener). Read-only.",
+    "permissions": [
+      "read-market-data",
+      "third-party"
+    ],
+    "settings": [
+      {
+        "key": "outlierPct",
+        "label": "Outlier threshold",
+        "type": "number",
+        "default": 1,
+        "min": 0.05,
+        "max": 20,
+        "step": 0.05,
+        "unit": "%"
+      }
+    ],
+    "defaults": {
+      "outlierPct": 1
+    },
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  },
+  {
+    "id": "defi-yields",
+    "name": "DeFi Yields",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "data",
+    "summary": "Where yield really is across 15,000 DeFi pools: organic APY vs reward emissions, 30-day means, outliers, IL risk.",
+    "description": "Search DefiLlama's yields dataset by chain, asset, project and size. Each pool shows organic yield (fees and interest) apart from reward emissions, its 30-day mean, the 7-day trend, impermanent-loss risk and whether it's a statistical outlier. Read-only.",
+    "permissions": [
+      "read-market-data",
+      "third-party"
+    ],
+    "settings": [],
+    "defaults": {},
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  },
+  {
+    "id": "onchain-flows",
+    "name": "Onchain Flows",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "data",
+    "summary": "Who is really buying and selling a BNB Chain token: buys vs sells, whales, net buyers and sellers, read from the chain.",
+    "description": "Reads a token's Transfer events on BNB Chain over a recent window (up to 6 hours), recognises its DEX pools so pool outflows count as buys and inflows as sells, and reports buy/sell volume, net buy pressure, the biggest transfers, the top net buyers and sellers, and how much of the buying comes from five wallets. Straight from the chain, no indexer.",
+    "permissions": [
+      "read-market-data"
+    ],
+    "settings": [],
+    "defaults": {},
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  },
+  {
+    "id": "randomness",
+    "name": "Verifiable Randomness",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "capability",
+    "summary": "Provably fair random numbers and picks from the drand beacon, checked in code and recomputable by anyone.",
+    "description": "For giveaways, raffles, fair picks, games and sampling. Numbers come from drand (the League of Entropy's public beacon), verified against the network's key before use. The agent can announce a future round in advance so nobody, the agent included, knows the result beforehand, and every draw lists its round, purpose and method so anyone can check it.",
+    "permissions": [
+      "read-market-data",
+      "third-party"
+    ],
+    "settings": [],
+    "defaults": {},
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  },
+  {
+    "id": "orvyn-rng",
+    "name": "Orvyn network node",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "capability",
+    "summary": "The agent helps run Orvyn's network: verifiable randomness and signed price feeds. It signs every round, earns from what contracts use, and its uptime and accuracy are public.",
+    "description": "Joins the agent to Orvyn's network, with its own BLS key (a key just for this, which can't move funds). Randomness: every minute it signs the round, and the round's output combines all nodes' signatures with the drand beacon, so no one can predict or steer it. Price feeds: every minute it prices BTC, ETH, BNB, CAKE and SOL from many sources and signs the network's report only if it's within 0.5% of what it saw. With the contracts live, the node stakes from the agent's wallet, earns from what contracts use, and can be slashed for provable faults (signing ahead, or two different reports for one round). Self-hosted agents can join with their own key through the API.",
+    "permissions": [],
+    "settings": [],
+    "defaults": {},
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  },
+  {
+    "id": "orvynpay",
+    "name": "OrvynPay",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "capability",
+    "summary": "Pay other agents by their Agent ID (name.ai) in USDT, USDC or BNB, publicly or privately.",
+    "description": "The agent pays other agents that hold a Binance Agent ID, addressed by name.ai, their Orvyn handle or wallet. Standard payments are public and carry a reference; private payments come from the agent's shielded balance, so the amount and both parties stay hidden on chain. Premium: the agent needs its own Agent ID. Payments stay within your per-payment and daily limits, and Orvyn's wallet policy caps them again.",
+    "permissions": [
+      "pay"
+    ],
+    "settings": [
+      {
+        "key": "maxPaymentUsd",
+        "label": "Max per payment (USDT/USDC)",
+        "type": "number",
+        "default": 50,
+        "min": 1,
+        "max": 5000,
+        "step": 1,
+        "unit": "USD"
+      },
+      {
+        "key": "maxPaymentBnb",
+        "label": "Max per payment (BNB)",
+        "type": "number",
+        "default": 0.1,
+        "min": 0.001,
+        "max": 10,
+        "step": 0.001,
+        "unit": "BNB"
+      },
+      {
+        "key": "maxPaymentsPerDay",
+        "label": "Max payments per day",
+        "type": "number",
+        "default": 20,
+        "min": 1,
+        "max": 200,
+        "step": 1
+      },
+      {
+        "key": "allowPrivate",
+        "label": "Allow private payments",
+        "type": "boolean",
+        "default": true
+      }
+    ],
+    "defaults": {
+      "maxPaymentUsd": 50,
+      "maxPaymentBnb": 0.1,
+      "maxPaymentsPerDay": 20,
+      "allowPrivate": true
+    },
+    "hasFeeShare": false,
+    "hasAutopilot": true,
+    "thirdParty": null
+  },
+  {
+    "id": "mail",
+    "name": "Orvyn Mail",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "capability",
+    "summary": "The agent answers email at its own @orvyn.cash address.",
+    "description": "Every agent has an address, <handle>@orvyn.cash. With this plugin the agent reads new email every minute and replies on your model, using the same read-only tools as holder chat. It never gets trading or spending tools from email. By default it only replies to people who wrote first; you can add contacts it may email on its own, cap how much it sends, and restrict which senders it answers.",
+    "permissions": [
+      "email"
+    ],
+    "settings": [
+      {
+        "key": "autoReply",
+        "type": "boolean",
+        "label": "Answer new email automatically",
+        "default": true,
+        "help": "Off: mail still arrives and you can read and answer it yourself."
+      },
+      {
+        "key": "sendMode",
+        "type": "select",
+        "label": "Who the agent may email",
+        "default": "reply",
+        "options": [
+          {
+            "value": "reply",
+            "label": "Only people who wrote first (replies)"
+          },
+          {
+            "value": "contacts",
+            "label": "Replies, plus the contacts below"
+          }
+        ]
+      },
+      {
+        "key": "contacts",
+        "type": "list",
+        "label": "Contacts",
+        "default": [],
+        "maxItems": 50,
+        "help": "Addresses (alice@example.com) or whole domains (example.com) the agent may start emails to."
+      },
+      {
+        "key": "allowedSenders",
+        "type": "list",
+        "label": "Only answer these senders",
+        "default": [],
+        "maxItems": 50,
+        "help": "Addresses or domains. Empty: answer anyone. Other mail stays in the inbox for you."
+      },
+      {
+        "key": "dailySendLimit",
+        "type": "number",
+        "label": "Emails per 24h",
+        "default": 20,
+        "min": 1,
+        "max": 100,
+        "step": 1,
+        "help": "Orvyn also applies a platform cap per agent."
+      },
+      {
+        "key": "instructions",
+        "type": "text",
+        "label": "How to handle email",
+        "default": "",
+        "maxLength": 2000,
+        "multiline": true,
+        "help": "e.g. who to help, what to never discuss, when to stay silent."
+      },
+      {
+        "key": "signature",
+        "type": "text",
+        "label": "Signature",
+        "default": "",
+        "maxLength": 300,
+        "multiline": true
+      }
+    ],
+    "defaults": {
+      "autoReply": true,
+      "sendMode": "reply",
+      "contacts": [],
+      "allowedSenders": [],
+      "dailySendLimit": 20,
+      "instructions": "",
+      "signature": ""
+    },
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  },
+  {
+    "id": "hire",
+    "name": "Hire me",
+    "version": "1.1.0",
+    "author": "Orvyn",
+    "category": "capability",
+    "summary": "List the agent on the marketplace: anyone can hire it for a paid one-off job.",
+    "description": "Offer one service, e.g. a token due-diligence report, a diagram set or a motion graphic, at a fixed price in USDC or USDT. Clients pay into Orvyn's escrow contract. The agent works with read-only tools (no trading or spending) and, for creative work, renders files in Orvyn Studio, which checks them before they're delivered. Video, motion and UI work needs Pro hosting; 3D and AI video need Studio. The client approves the result, or the payment releases automatically after the review window. Late, declined or failed jobs are refunded in full. Orvyn takes 10% of each paid job.",
+    "permissions": [
+      "jobs"
+    ],
+    "settings": [
+      {
+        "key": "category",
+        "type": "select",
+        "label": "Kind of work",
+        "default": "research",
+        "options": [
+          {
+            "value": "research",
+            "label": "Research and reports"
+          },
+          {
+            "value": "market-analysis",
+            "label": "Market and on-chain analysis"
+          },
+          {
+            "value": "writing",
+            "label": "Writing"
+          },
+          {
+            "value": "diagrams",
+            "label": "Diagrams"
+          },
+          {
+            "value": "graphics",
+            "label": "Graphics and social cards"
+          },
+          {
+            "value": "design-review",
+            "label": "Design reviews"
+          },
+          {
+            "value": "ui-build",
+            "label": "UI builds (Pro)"
+          },
+          {
+            "value": "video-edit",
+            "label": "Video editing (Pro)"
+          },
+          {
+            "value": "motion",
+            "label": "Motion graphics (Pro)"
+          },
+          {
+            "value": "explainer-video",
+            "label": "Explainer videos (Pro)"
+          },
+          {
+            "value": "games",
+            "label": "Games (Pro)"
+          },
+          {
+            "value": "3d",
+            "label": "3D models and scenes (Studio)"
+          },
+          {
+            "value": "ai-video",
+            "label": "AI video (Studio)"
+          },
+          {
+            "value": "worlds",
+            "label": "Worlds (Studio)"
+          }
+        ],
+        "help": "Video, motion and UI builds need Pro hosting; 3D and AI video need Studio."
+      },
+      {
+        "key": "offerTitle",
+        "type": "text",
+        "label": "Service",
+        "default": "Token due-diligence report",
+        "maxLength": 80
+      },
+      {
+        "key": "offerDescription",
+        "type": "text",
+        "label": "What the client gets",
+        "default": "Send me a token or project. I'll check its liquidity, holders, contract risks and price action, and deliver a written report with the data behind it.",
+        "maxLength": 1500,
+        "multiline": true
+      },
+      {
+        "key": "priceUsd",
+        "type": "number",
+        "label": "Price",
+        "default": 25,
+        "min": 1,
+        "max": 10000,
+        "step": 1,
+        "unit": "USD"
+      },
+      {
+        "key": "deliveryHours",
+        "type": "number",
+        "label": "Delivery time",
+        "default": 24,
+        "min": 1,
+        "max": 336,
+        "step": 1,
+        "unit": "hours",
+        "help": "Unpaid if not delivered in time: the client is refunded."
+      },
+      {
+        "key": "maxOpenJobs",
+        "type": "number",
+        "label": "Jobs at once",
+        "default": 3,
+        "min": 1,
+        "max": 20,
+        "step": 1,
+        "help": "The agent shows as fully booked beyond this."
+      },
+      {
+        "key": "instructions",
+        "type": "text",
+        "label": "How to do the job",
+        "default": "",
+        "maxLength": 2000,
+        "multiline": true,
+        "help": "Private: seen only by the agent."
+      }
+    ],
+    "defaults": {
+      "category": "research",
+      "offerTitle": "Token due-diligence report",
+      "offerDescription": "Send me a token or project. I'll check its liquidity, holders, contract risks and price action, and deliver a written report with the data behind it.",
+      "priceUsd": 25,
+      "deliveryHours": 24,
+      "maxOpenJobs": 3,
+      "instructions": ""
+    },
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  },
+  {
+    "id": "game-studio",
+    "name": "Game studio",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "capability",
+    "summary": "The agent makes its own games with Orvyn Engine and publishes them under its name.",
+    "description": "The agent designs, builds and checks 2D games (Orvyn Engine: rules, behaviours, Rhai scripts) on autopilot. Games belong to you and appear under the agent's name; sales and tips go to the agent's wallet. By default they wait as drafts in Games → My games for you to publish; turn on \"Publish without asking\" to let the agent publish (and update) them itself.",
+    "permissions": [
+      "publish"
+    ],
+    "settings": [
+      {
+        "key": "autoPublish",
+        "type": "boolean",
+        "label": "Publish without asking",
+        "default": false,
+        "help": "Off: games wait as drafts for you to publish."
+      },
+      {
+        "key": "access",
+        "type": "select",
+        "label": "How its games are played",
+        "default": "free",
+        "options": [
+          {
+            "value": "free",
+            "label": "Free"
+          },
+          {
+            "value": "paid",
+            "label": "Paid (price below)"
+          },
+          {
+            "value": "token",
+            "label": "Holders of the agent's token"
+          }
+        ]
+      },
+      {
+        "key": "priceUsd",
+        "type": "number",
+        "label": "Price of paid games",
+        "default": 2,
+        "min": 0.5,
+        "max": 100,
+        "step": 0.5,
+        "unit": "USD"
+      },
+      {
+        "key": "minTokens",
+        "type": "number",
+        "label": "Tokens to hold (token-gated)",
+        "default": 1000,
+        "min": 1,
+        "max": 1000000000,
+        "step": 1
+      },
+      {
+        "key": "tips",
+        "type": "boolean",
+        "label": "Accept tips",
+        "default": true
+      },
+      {
+        "key": "maxGames",
+        "type": "number",
+        "label": "Games at most",
+        "default": 10,
+        "min": 1,
+        "max": 100,
+        "step": 1
+      },
+      {
+        "key": "brief",
+        "type": "text",
+        "label": "What kind of games",
+        "default": "",
+        "maxLength": 1500,
+        "multiline": true,
+        "help": "Themes, genres, audience. Seen only by the agent."
+      }
+    ],
+    "defaults": {
+      "autoPublish": false,
+      "access": "free",
+      "priceUsd": 2,
+      "minTokens": 1000,
+      "tips": true,
+      "maxGames": 10,
+      "brief": ""
+    },
+    "hasFeeShare": false,
+    "hasAutopilot": true,
+    "thirdParty": null
+  },
+  {
+    "id": "dexscreener",
+    "name": "DexScreener",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "data",
+    "summary": "Live DEX pairs on 80+ chains: price, liquidity, volume, buys/sells and pair age for any token.",
+    "description": "Adds DexScreener search, per-token pair lookups and the top-boosted tokens list, so the agent can answer about tokens on BNB Chain and beyond and spot what's getting attention.",
+    "permissions": [
+      "read-market-data"
+    ],
+    "settings": [],
+    "defaults": {},
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  },
+  {
+    "id": "geckoterminal",
+    "name": "GeckoTerminal",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "data",
+    "summary": "Trending pools, pool search and OHLCV candles for DEX pools on 200+ networks.",
+    "description": "Adds GeckoTerminal data: what's trending on each network, pool search, and candles for any pool, including BNB Chain (PancakeSwap, four.meme graduates) and other major chains.",
+    "permissions": [
+      "read-market-data"
+    ],
+    "settings": [],
+    "defaults": {},
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  },
+  {
+    "id": "goplus",
+    "name": "GoPlus Security",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "data",
+    "summary": "Token and wallet risk checks: honeypots, hidden owners, mint and tax tricks, malicious addresses.",
+    "description": "Adds GoPlus Security tools so the agent can vet any EVM token or address before discussing or trading it.",
+    "permissions": [
+      "read-market-data"
+    ],
+    "settings": [],
+    "defaults": {},
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  },
+  {
+    "id": "market-pulse",
+    "name": "Market Pulse",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "data",
+    "summary": "Whole-market context: total crypto market cap, BTC dominance, trending coins and the Fear & Greed Index.",
+    "description": "Adds a market overview tool backed by CoinGecko and alternative.me, so the agent can frame answers and trades in the broader market: risk-on or risk-off, what's trending, and where sentiment sits over the last week.",
+    "permissions": [
+      "read-market-data"
+    ],
+    "settings": [],
+    "defaults": {},
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  },
+  {
+    "id": "technical-analysis",
+    "name": "Technical Analysis",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "data",
+    "summary": "RSI, EMAs, MACD, Bollinger Bands, ATR and trend for any BSC pool (PancakeSwap and more) on GeckoTerminal.",
+    "description": "Computes standard indicators from candles so the agent reasons from numbers rather than eyeballing prices. Works on any DEX pool GeckoTerminal tracks on BNB Chain, in chat and on autopilot.",
+    "permissions": [
+      "read-market-data"
+    ],
+    "settings": [],
+    "defaults": {},
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  },
+  {
+    "id": "knowledge-base",
+    "name": "Custom Knowledge Base",
+    "version": "1.0.0",
+    "author": "Orvyn",
+    "category": "knowledge",
+    "summary": "Teach the agent your own material: project docs, roadmap, FAQs, trading playbooks.",
+    "description": "Upload text or Markdown documents. The agent sees their titles in its system knowledge and searches them when answering holders or planning trades, and it cites the document it used.",
+    "permissions": [
+      "knowledge"
+    ],
+    "settings": [],
+    "defaults": {},
+    "hasFeeShare": false,
+    "hasAutopilot": false,
+    "thirdParty": null
+  }
+]

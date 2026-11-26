@@ -1,0 +1,50 @@
+{
+  "nowMs": 1795000000000,
+  "requirement": {
+    "scheme": "exact",
+    "network": "eip155:56",
+    "amount": "2000000000000000000",
+    "asset": "0x55d398326f99059fF775485246999027B3197955",
+    "payTo": "0x4444444444444444444444444444444444444444",
+    "maxTimeoutSeconds": 300,
+    "extra": {
+      "assetTransferMethod": "permit2"
+    }
+  },
+  "payment": {
+    "x402Version": 2,
+    "resource": {
+      "url": "https://seller.example/data"
+    },
+    "accepted": {
+      "scheme": "exact",
+      "network": "eip155:56",
+      "amount": "2000000000000000000",
+      "asset": "0x55d398326f99059fF775485246999027B3197955",
+      "payTo": "0x4444444444444444444444444444444444444444",
+      "maxTimeoutSeconds": 300,
+      "extra": {
+        "assetTransferMethod": "permit2"
+      }
+    },
+    "payload": {
+      "signature": "0x7856a140cea71037c4a834cbb5380bf6a48864f8dc293bf5c90dfa4ff6895ed731fd7fb655062391649818f3f13cfd3f84c18646abfe672f6cd38efa06b99e211c",
+      "permit2Authorization": {
+        "from": "0x17c5185167401eD00cF5F5b2fc97D9BBfDb7D025",
+        "permitted": {
+          "token": "0x55d398326f99059fF775485246999027B3197955",
+          "amount": "2000000000000000000"
+        },
+        "spender": "0x402085c248EeA27D92E8b30b2C58ed07f9E20001",
+        "nonce": "62450992745632317160866786130633332118696911995293499126280236803268518887341",
+        "deadline": "1795000300",
+        "witness": {
+          "to": "0x4444444444444444444444444444444444444444",
+          "validAfter": "1794999940"
+        }
+      }
+    }
+  },
+  "payer": "0x17c5185167401eD00cF5F5b2fc97D9BBfDb7D025",
+  "header": "eyJ4NDAyVmVyc2lvbiI6MiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9zZWxsZXIuZXhhbXBsZS9kYXRhIn0sImFjY2VwdGVkIjp7InNjaGVtZSI6ImV4YWN0IiwibmV0d29yayI6ImVpcDE1NTo1NiIsImFtb3VudCI6IjIwMDAwMDAwMDAwMDAwMDAwMDAiLCJhc3NldCI6IjB4NTVkMzk4MzI2Zjk5MDU5ZkY3NzU0ODUyNDY5OTkwMjdCMzE5Nzk1NSIsInBheVRvIjoiMHg0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0IiwibWF4VGltZW91dFNlY29uZHMiOjMwMCwiZXh0cmEiOnsiYXNzZXRUcmFuc2Zlck1ldGhvZCI6InBlcm1pdDIifX0sInBheWxvYWQiOnsic2lnbmF0dXJlIjoiMHg3ODU2YTE0MGNlYTcxMDM3YzRhODM0Y2JiNTM4MGJmNmE0ODg2NGY4ZGMyOTNiZjVjOTBkZmE0ZmY2ODk1ZWQ3MzFmZDdmYjY1NTA2MjM5MTY0OTgxOGYzZjEzY2ZkM2Y4NGMxODY0NmFiZmU2NzJmNmNkMzhlZmEwNmI5OWUyMTFjIiwicGVybWl0MkF1dGhvcml6YXRpb24iOnsiZnJvbSI6IjB4MTdjNTE4NTE2NzQwMWVEMDBjRjVGNWIyZmM5N0Q5QkJmRGI3RDAyNSIsInBlcm1pdHRlZCI6eyJ0b2tlbiI6IjB4NTVkMzk4MzI2Zjk5MDU5ZkY3NzU0ODUyNDY5OTkwMjdCMzE5Nzk1NSIsImFtb3VudCI6IjIwMDAwMDAwMDAwMDAwMDAwMDAifSwic3BlbmRlciI6IjB4NDAyMDg1YzI0OEVlQTI3RDkyRThiMzBiMkM1OGVkMDdmOUUyMDAwMSIsIm5vbmNlIjoiNjI0NTA5OTI3NDU2MzIzMTcxNjA4NjY3ODYxMzA2MzMzMzIxMTg2OTY5MTE5OTUyOTM0OTkxMjYyODAyMzY4MDMyNjg1MTg4ODczNDEiLCJkZWFkbGluZSI6IjE3OTUwMDAzMDAiLCJ3aXRuZXNzIjp7InRvIjoiMHg0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0IiwidmFsaWRBZnRlciI6IjE3OTQ5OTk5NDAifX19fQ=="
+}

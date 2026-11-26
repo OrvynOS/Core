@@ -1,0 +1,21 @@
+[package]
+name = "orvyn-mcp"
+version = "0.1.0"
+description = "Orvyn's trading MCP servers for BNB Chain (PancakeSwap, Uniswap, four.meme, Flap). They only build unsigned transactions."
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/OrvynOS/Core"
+publish = false
+
+[dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "time", "net", "sync"] }
+alloy = { version = "2", default-features = false, features = ["std", "providers", "provider-http", "reqwest-rustls-tls", "sol-types", "rpc-types", "network"] }
+chrono = "0.4"
+subtle = "2"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

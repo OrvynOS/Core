@@ -1,0 +1,7 @@
+[
+  "plugin:automation:run",
+  "plugin:track-record:grade",
+  "plugin:orvyn-rng:join",
+  "plugin:mail:inbox",
+  "plugin:hire:jobs"
+]

@@ -1,0 +1,90 @@
+{
+  "key": "0x4242424242424242424242424242424242424242424242424242424242424242",
+  "address": "0x17c5185167401ed00cf5f5b2fc97d9bbfdb7d025",
+  "message": {
+    "text": "{\"type\":\"orvyn-id-proof\"}",
+    "signature": "0x6528c7f507ca557b9a6d645287075c9b90e556415391cbf7018b9310185930042304ec97bcd4411bb1ed55c8a0c8f482dcfa8cc74ea2a71661187d53fd01b98e1c"
+  },
+  "typed": {
+    "data": {
+      "domain": {
+        "name": "Permit2",
+        "chainId": 56,
+        "verifyingContract": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+      },
+      "types": {
+        "PermitWitnessTransferFrom": [
+          {
+            "name": "permitted",
+            "type": "TokenPermissions"
+          },
+          {
+            "name": "spender",
+            "type": "address"
+          },
+          {
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "name": "deadline",
+            "type": "uint256"
+          },
+          {
+            "name": "witness",
+            "type": "Witness"
+          }
+        ],
+        "TokenPermissions": [
+          {
+            "name": "token",
+            "type": "address"
+          },
+          {
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "Witness": [
+          {
+            "name": "to",
+            "type": "address"
+          },
+          {
+            "name": "validAfter",
+            "type": "uint256"
+          }
+        ]
+      },
+      "primaryType": "PermitWitnessTransferFrom",
+      "message": {
+        "permitted": {
+          "token": "0x55d398326f99059fF775485246999027B3197955",
+          "amount": "2000000000000000000"
+        },
+        "spender": "0x402085c248EeA27D92E8b30b2C58ed07f9E20001",
+        "nonce": "12345",
+        "deadline": "1795000300",
+        "witness": {
+          "to": "0x4444444444444444444444444444444444444444",
+          "validAfter": "0"
+        }
+      }
+    },
+    "signature": "0x3462365d3e63455c9ef6a8d917149db09a8b9ca80faa5e3228c71d2392c7ccbd61e2f12b7df0ff449327cea405e5a1f366afb117bc08cabac0fd3d6e8eeb7da81b"
+  },
+  "tx": {
+    "input": {
+      "type": "eip1559",
+      "chainId": 56,
+      "nonce": 7,
+      "to": "0x1234567890123456789012345678901234567890",
+      "value": "100000000000000000",
+      "data": "0xabcdef",
+      "gas": "50000",
+      "maxFeePerGas": "3000000000",
+      "maxPriorityFeePerGas": "1000000000"
+    },
+    "signed": "0x02f8753807843b9aca0084b2d05e0082c35094123456789012345678901234567890123456789088016345785d8a000083abcdefc080a0b2f2c86561958d9ebef2608812cfac3220ab4cefc4ca7c1eeb0904327a040c01a0423fbd678be81ca6ffaeffddf3955f0e169048206154c636c363a6690ea4c621"
+  }
+}

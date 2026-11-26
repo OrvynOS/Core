@@ -1,0 +1,1 @@
+ALTER TABLE "hires" ADD COLUMN "client_country" text;

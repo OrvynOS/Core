@@ -1,0 +1,120 @@
+{
+  "keyBase64": "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JR0hBZ0VBTUJNR0J5cUdTTTQ5QWdFR0NDcUdTTTQ5QXdFSEJHMHdhd0lCQVFRZzY4Qlh5L2hldjF5dzN2cFQKRVNVWkVsNS9VY2ZySDdIVDVkVlY5THZVOXlXaFJBTkNBQVF5YkkxVEhKbUlTT0dyM2pXVnpPRTE3b3pXUVdqNAo1amdYU1FPYmMzVk9xNGw3MXZqUG9yVVRGTEdQSmFOOUh3M2FtVkx0NWR5LzhYeXRuZDNFQzlFVwotLS0tLUVORCBQUklWQVRFIEtFWS0tLS0tCg==",
+  "jwks": {
+    "keys": [
+      {
+        "kty": "EC",
+        "x": "MmyNUxyZiEjhq941lczhNe6M1kFo-OY4F0kDm3N1Tqs",
+        "y": "iXvW-M-itRMUsY8lo30fDdqZUu3l3L_xfK2d3cQL0RY",
+        "crv": "P-256",
+        "kid": "pp8gR_-KMNDXUEBTqKccnQkY98HKKTBo_-sgwAv4aKc",
+        "use": "sig",
+        "alg": "ES256"
+      }
+    ]
+  },
+  "access": "eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6InBwOGdSXy1LTU5EWFVFQlRxS2NjblFrWTk4SEtLVEJvXy1zZ3dBdjRhS2MifQ.eyJpc3MiOiJodHRwczovL2FwaS50ZXN0Iiwic3ViIjoidXNlcjoweGFiYyIsImF1ZCI6Im9ydl94IiwiY2xpZW50X2lkIjoib3J2X3giLCJzY29wZSI6Im9wZW5pZCB2eW4iLCJnaWQiOjcsImlhdCI6MTc5NTAwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwLCJqdGkiOiJqMSJ9.O2lJWTGJH72FFXPu1M1bDOooEVo2HGkLg6WqnmdWptjG983vdCUbtT_hODkwZn2ZX7lcVUNGcNG9R7hjL9uhDw",
+  "expired": "eyJhbGciOiJFUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6InBwOGdSXy1LTU5EWFVFQlRxS2NjblFrWTk4SEtLVEJvXy1zZ3dBdjRhS2MifQ.eyJpc3MiOiJodHRwczovL2FwaS50ZXN0Iiwic3ViIjoidXNlcjoweGFiYyIsImV4cCI6MTAwMH0.NTPi7ztyuDQVWhluv9BncgswG9EBY4i9cOEVa9y4NUCJLhOQWFNazG86nBUrGS_4uY0ZE5vPjcSxUy6SCZ9wIg",
+  "id": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InBwOGdSXy1LTU5EWFVFQlRxS2NjblFrWTk4SEtLVEJvXy1zZ3dBdjRhS2MifQ.eyJzdWIiOiJhZ2VudDphMSIsIm5hbWUiOiJOb3ZhIiwiaXNzIjoiaHR0cHM6Ly9hcGkudGVzdCIsImV4cCI6NDEwMjQ0NDgwMH0.E2i6d_tsgvXEPBIZs8g96LVOfHRqmpGsYbm6NFJjlc_5NmPPfcCMS_DQkylLcts1_IvTRAbjOZeI5za69ZcRDQ",
+  "uris": [
+    [
+      "https://x.com/cb",
+      null
+    ],
+    [
+      "http://localhost:3000/cb",
+      null
+    ],
+    [
+      "http://127.0.0.1/cb",
+      null
+    ],
+    [
+      "http://example.com/cb",
+      "invalid_redirect_uri"
+    ],
+    [
+      "vyn://oauth/callback",
+      null
+    ],
+    [
+      "com.example.app:/cb",
+      null
+    ],
+    [
+      "javascript:alert(1)",
+      "invalid_redirect_uri"
+    ],
+    [
+      "https://x.com/cb#frag",
+      "invalid_redirect_uri"
+    ],
+    [
+      "not a url",
+      "invalid_redirect_uri"
+    ],
+    [
+      "file:///etc/passwd",
+      "invalid_redirect_uri"
+    ],
+    [
+      "data:text/html,hi",
+      "invalid_redirect_uri"
+    ]
+  ],
+  "discovery": {
+    "issuer": "https://api.test",
+    "authorization_endpoint": "https://app.test/oauth/authorize",
+    "token_endpoint": "https://api.test/oauth/token",
+    "userinfo_endpoint": "https://api.test/oauth/userinfo",
+    "jwks_uri": "https://api.test/oauth/jwks",
+    "revocation_endpoint": "https://api.test/oauth/revoke",
+    "device_authorization_endpoint": "https://api.test/oauth/device_authorization",
+    "scopes_supported": [
+      "openid",
+      "profile",
+      "email",
+      "wallet",
+      "agent",
+      "offline_access",
+      "vyn",
+      "agents"
+    ],
+    "response_types_supported": [
+      "code"
+    ],
+    "grant_types_supported": [
+      "authorization_code",
+      "refresh_token",
+      "urn:ietf:params:oauth:grant-type:device_code"
+    ],
+    "code_challenge_methods_supported": [
+      "S256"
+    ],
+    "token_endpoint_auth_methods_supported": [
+      "none",
+      "client_secret_basic",
+      "client_secret_post"
+    ],
+    "subject_types_supported": [
+      "public"
+    ],
+    "id_token_signing_alg_values_supported": [
+      "ES256"
+    ],
+    "claims_supported": [
+      "sub",
+      "orvyn_subject_type",
+      "name",
+      "preferred_username",
+      "picture",
+      "email",
+      "email_verified",
+      "wallet_address",
+      "agent_id_name",
+      "erc8004_agent_id",
+      "agent_environment",
+      "profile"
+    ]
+  }
+}

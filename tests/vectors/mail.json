@@ -1,0 +1,448 @@
+{
+  "emails": [
+    [
+      "Alice@Example.com",
+      "alice@example.com",
+      {
+        "local": "alice",
+        "tag": null,
+        "domain": "example.com"
+      }
+    ],
+    [
+      " <bob+tag@x.co.uk> ",
+      "bob+tag@x.co.uk",
+      {
+        "local": "bob",
+        "tag": "tag",
+        "domain": "x.co.uk"
+      }
+    ],
+    [
+      "bad@",
+      null,
+      null
+    ],
+    [
+      "no-at.example.com",
+      null,
+      null
+    ],
+    [
+      "a@b",
+      null,
+      null
+    ],
+    [
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@a.com",
+      null,
+      null
+    ],
+    [
+      "ok.name+1@sub.domain.io",
+      "ok.name+1@sub.domain.io",
+      {
+        "local": "ok.name",
+        "tag": "1",
+        "domain": "sub.domain.io"
+      }
+    ]
+  ],
+  "lists": [
+    [
+      "alice@x.com",
+      [
+        "x.com"
+      ],
+      true
+    ],
+    [
+      "alice@x.com",
+      [
+        "@x.com"
+      ],
+      true
+    ],
+    [
+      "alice@x.com",
+      [
+        "bob@x.com"
+      ],
+      false
+    ],
+    [
+      "alice@x.com",
+      [
+        "ALICE@x.com"
+      ],
+      true
+    ],
+    [
+      "alice@y.x.com",
+      [
+        "x.com"
+      ],
+      false
+    ],
+    [
+      "alice@x.com",
+      [
+        "",
+        " "
+      ],
+      false
+    ]
+  ],
+  "autos": [
+    [
+      {
+        "autoSubmitted": "auto-replied",
+        "precedence": null,
+        "listId": null,
+        "mailFrom": "a@b.com",
+        "fromAddress": "a@b.com"
+      },
+      true
+    ],
+    [
+      {
+        "autoSubmitted": "no",
+        "precedence": null,
+        "listId": null,
+        "mailFrom": "a@b.com",
+        "fromAddress": "a@b.com"
+      },
+      false
+    ],
+    [
+      {
+        "autoSubmitted": null,
+        "precedence": "Bulk",
+        "listId": null,
+        "mailFrom": "a@b.com",
+        "fromAddress": "a@b.com"
+      },
+      true
+    ],
+    [
+      {
+        "autoSubmitted": null,
+        "precedence": null,
+        "listId": "<list.x>",
+        "mailFrom": "a@b.com",
+        "fromAddress": "a@b.com"
+      },
+      true
+    ],
+    [
+      {
+        "autoSubmitted": null,
+        "precedence": null,
+        "listId": null,
+        "mailFrom": "",
+        "fromAddress": "a@b.com"
+      },
+      true
+    ],
+    [
+      {
+        "autoSubmitted": null,
+        "precedence": null,
+        "listId": null,
+        "mailFrom": "a@b.com",
+        "fromAddress": "no-reply@b.com"
+      },
+      true
+    ],
+    [
+      {
+        "autoSubmitted": null,
+        "precedence": null,
+        "listId": null,
+        "mailFrom": "a@b.com",
+        "fromAddress": "noreply+x@b.com"
+      },
+      true
+    ],
+    [
+      {
+        "autoSubmitted": null,
+        "precedence": null,
+        "listId": null,
+        "mailFrom": "a@b.com",
+        "fromAddress": "alice@b.com"
+      },
+      false
+    ]
+  ],
+  "spam": [
+    [
+      {
+        "spf": "pass",
+        "dkim": "pass",
+        "dmarc": "pass",
+        "dmarcPolicy": null
+      },
+      false
+    ],
+    [
+      {
+        "spf": "fail",
+        "dkim": "fail",
+        "dmarc": "none",
+        "dmarcPolicy": null
+      },
+      true
+    ],
+    [
+      {
+        "spf": "fail",
+        "dkim": "pass",
+        "dmarc": "pass",
+        "dmarcPolicy": null
+      },
+      false
+    ],
+    [
+      {
+        "spf": "pass",
+        "dkim": "fail",
+        "dmarc": "fail",
+        "dmarcPolicy": "reject"
+      },
+      true
+    ],
+    [
+      {
+        "spf": "pass",
+        "dkim": "fail",
+        "dmarc": "fail",
+        "dmarcPolicy": "none"
+      },
+      false
+    ]
+  ],
+  "bounce": "bounces+42-e5f91f34e392@orvyn.cash",
+  "replySubject": [
+    [
+      "Hello",
+      "Re: Hello"
+    ],
+    [
+      "re: Hello",
+      "re: Hello"
+    ],
+    [
+      "  RE:x ",
+      "RE:x"
+    ],
+    [
+      "",
+      "Re: "
+    ]
+  ],
+  "quoted": [
+    [
+      "Thanks, looks good!\n\nOn Tue, 3 Nov 2026 at 10:00, Nova <nova@orvyn.cash> wrote:\n> Here is the draft",
+      "Thanks, looks good!"
+    ],
+    [
+      "Sure.\r\n> earlier text\r\n> more\r\n",
+      "Sure."
+    ],
+    [
+      "Line one\n> not a quote block because\nmore text after",
+      "Line one\n> not a quote block because\nmore text after"
+    ],
+    [
+      "Answer\n-----Original Message-----\nFrom: x",
+      "Answer"
+    ],
+    [
+      "> only quotes\n> here",
+      ""
+    ]
+  ],
+  "paymentTx": {
+    "chainId": 56,
+    "calls": [
+      {
+        "to": "0x55d398326f99059ff775485246999027b3197955",
+        "data": "0x095ea7b300000000000000000000000055555555555555555555555555555555555555550000000000000000000000000000000000000000000000015af1d78b58c40000",
+        "value": "0"
+      },
+      {
+        "to": "0x5555555555555555555555555555555555555555",
+        "data": "0x4b5a1ffe00000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000100000000000000000000000000666666666666666666666666666666666666666600000000000000000000000055d398326f99059ff775485246999027b31979550000000000000000000000000000000000000000000000015af1d78b58c40000000000000000000000000000000000000000000000000000000000006afd86c00000000000000000000000000000000000000000000000000000000000000007686162633132330000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000076167656e742d3100000000000000000000000000000000000000000000000000",
+        "value": "0"
+      }
+    ]
+  },
+  "paymentTxBnb": {
+    "chainId": 56,
+    "calls": [
+      {
+        "to": "0x5555555555555555555555555555555555555555",
+        "data": "0x4b5a1ffe00000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000010000000000000000000000000066666666666666666666666666666666666666660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008e1bc9bf040000000000000000000000000000000000000000000000000000000000006afd86c0000000000000000000000000000000000000000000000000000000000000000468626e620000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000076167656e742d3100000000000000000000000000000000000000000000000000",
+        "value": "40000000000000000"
+      }
+    ]
+  },
+  "clientCalls": [
+    {
+      "chainId": 56,
+      "calls": [
+        {
+          "to": "0x5555555555555555555555555555555555555555",
+          "data": "0xb67b7163000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000076861626331323300000000000000000000000000000000000000000000000000",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "calls": [
+        {
+          "to": "0x5555555555555555555555555555555555555555",
+          "data": "0x6a18c6e2000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000007686162633132330000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000146e6f74207768617420492061736b656420666f72000000000000000000000000",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "chainId": 56,
+      "calls": [
+        {
+          "to": "0x5555555555555555555555555555555555555555",
+          "data": "0xa40d52ea000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000076861626331323300000000000000000000000000000000000000000000000000",
+          "value": "0"
+        }
+      ]
+    }
+  ],
+  "toUsd": [
+    [
+      "25000000000000000000",
+      25
+    ],
+    [
+      "1234567890123456789",
+      1.234567
+    ],
+    [
+      "1",
+      0
+    ]
+  ],
+  "offers": [
+    [
+      {},
+      {
+        "category": "research",
+        "title": "",
+        "description": "",
+        "priceUsd": 0,
+        "deliveryHours": 24,
+        "maxOpenJobs": 3,
+        "instructions": ""
+      }
+    ],
+    [
+      {
+        "category": "video",
+        "offerTitle": "Clips",
+        "priceUsd": "12.5",
+        "deliveryHours": 6,
+        "maxOpenJobs": 2,
+        "instructions": "x"
+      },
+      {
+        "category": "video",
+        "title": "Clips",
+        "description": "",
+        "priceUsd": 12.5,
+        "deliveryHours": 6,
+        "maxOpenJobs": 2,
+        "instructions": "x"
+      }
+    ]
+  ],
+  "resultHash": "ba63fd94050cd95dd0599ae568589355c84e35b123485a72d67fa8347724290b",
+  "manifest": "\n\n---\nFiles (SHA-256):\n- cover.png (121 KB) abababababababababababababababababababababababababababababababab\n- clip.mp4 (1 KB) cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+  "files": [
+    {
+      "name": "cover.png",
+      "bytes": 123456,
+      "sha256": "abababababababababababababababababababababababababababababababab"
+    },
+    {
+      "name": "clip.mp4",
+      "bytes": 512,
+      "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+    }
+  ],
+  "models": [
+    [
+      "lyra",
+      "world-3d",
+      null,
+      null
+    ],
+    [
+      "hunyuanworld",
+      "world-3d",
+      null,
+      "HunyuanWorld 1.0 (Tencent)'s licence doesn't cover every country, and the client's country isn't known. Use lyra instead."
+    ],
+    [
+      "hunyuanworld",
+      "world-3d",
+      "DE",
+      "HunyuanWorld 1.0 (Tencent)'s licence doesn't cover the client's country (DE). Use lyra instead."
+    ],
+    [
+      "hunyuanworld",
+      "world-3d",
+      "US",
+      null
+    ],
+    [
+      "yume",
+      "world-3d",
+      "US",
+      "YUME 1.5 is a world-video model, not world-3d."
+    ],
+    [
+      "nope",
+      "long-video",
+      "US",
+      "Unknown model nope (helios, longlive for long-video)."
+    ]
+  ],
+  "renderBlocked": [
+    [
+      "basic",
+      "ffmpeg",
+      null,
+      "ffmpeg needs Pro hosting (this agent is on Basic)."
+    ],
+    [
+      "pro",
+      "ffmpeg",
+      null,
+      null
+    ],
+    [
+      "basic",
+      "diagram",
+      "video",
+      null
+    ],
+    [
+      "studio",
+      "blender",
+      null,
+      null
+    ]
+  ]
+}

@@ -1,0 +1,20 @@
+Orvyn Engine games are one JSON file:
+{ "format": "orvyn-game/1", "title", "description", "size": [w, h] (the game's own resolution, e.g. [480, 270]), "background": "#hex", "seed", "start": "<scene>",
+  "vars": { game-wide variables },
+  "prefabs": { name: entity },
+  "scenes": { name: { "gravity": [x, y], "bounds": [x, y, w, h], "camera": { "follow": tag, "zoom" }, "entities": [...], "tilemap": { "tile": [w, h], "rows": ["#..s.."], "legend": { "#": { "color": "#hex" }, "s": "prefabName" } }, "rules": [...] } },
+  "assets": { "images": { name: { "src": "file.png" | "data:...", "frame": [w, h], "anims": { name: { "frames": [0, 1], "fps": 8 } } } }, "sounds": { name: "file.wav" | "data:..." } },
+  "scripts": { "main.rhai": "...", "logic.ts": "..." },
+  "touch": { "pad": "leftright" | "dpad", "buttons": ["space"] },
+  "leaderboard": { "var": "score" | "$time" (seconds to win), "order": "high"|"low", "label": "Score" },
+  "save": ["level", "unlocked"] (vars kept for each player between plays) }
+
+Entity: { "id", "prefab", "tags": [], "pos": [x, y] (top-left), "size": [w, h], "shape": "rect"|"circle", "color", "sprite": { "image", "frame", "anim" }, "text": { "value": "Score {score}", "size", "color", "align" }, "body": "none"|"static"|"dynamic"|"kinematic", "sensor": true (overlaps only), "vel": [x, y], "layer", "hud": true (screen space), "behaviours": [...], "vars": {} }
+Behaviours: platformer {speed, jump} (arrows/WASD, up or space jumps), topdown {speed}, patrol {speed, range, vertical}, follow {target, speed}, bounce, wrap, spin {speed}, lifetime {seconds}, offscreen, pointer {axis}.
+Rules: { "when": { "event": "start"|"tick"|"every" (seconds)|"key" (key, state pressed|down|released)|"tap" (tag)|"collide" (a, b tags)|"var" (name, op, value) }, "if": [{ "var", "op", "value" } | { "count": tag, "op", "value" } | { "chance": 0.3 }], "do": [actions] }
+Actions: set {var, value, on}, add {var, value, on}, spawn {prefab, at: target | pos, offset, vel}, destroy {target}, move {target, to | by}, velocity {target, vel}, change {target, visible, color, text, anim}, sound {sound}, shake {strength, seconds}, scene {scene}, restart, win {message}, lose {message}, call {function}. Targets: "self"/"a", "b" (the other in a collision), "tag:<name>", or an entity id. Messages and HUD text fill in {var}.
+Rhai scripts (run everywhere): on_start(), on_tick(dt), on_collide(a, b), functions rules call; API create(prefab, x, y), destroy, x, y, vx, vy, set_pos, set_vel, on_ground, find(tag), first, count, has_tag, get/set (game or entity vars), key, pressed, pointer_x/pointer_y/pointer_down, random, random_int, time, sound, shake, scene, restart, win, lose, text, color, visible, anim, log. (spawn is reserved in Rhai: use create.)
+TS/JS scripts (browser): export function onStart(api), onTick(api, dt), onCollide(api, a, b), and functions rules call (api, a, b); api.spawn, destroy, entity, setPos, setVel, find, get, set, random, sound, scene, win, lose, text, key, pressed. Prefer no-code rules and Rhai: they're checked headless before publishing; TS only runs in the browser.
+Leaderboards: Orvyn replays every run to check the score, so a game with a leaderboard must run entirely in the engine (rules and Rhai, no TS/JS), and must end (win or lose) for a run to count. The score var can't also be saved.
+Dream worlds are a second kind of game, explored live instead of built: { "format": "orvyn-world/1", "title", "description", "model": "dream" (Orvyn's generated landscapes; no GPU, can be free) | "yume" | "worldplay" (GPU world models: start from an uploaded picture named in "image"; must be paid or token-gated), "prompt": "the place, vividly", "seconds": 30-600 (one visit), "size": [640, 360] }. Make one when someone wants a place to wander rather than a game with rules.
+Make it original (never a copy of an existing game, its characters or levels), winnable, with a clear goal, a way to lose, a HUD, and touch controls. Check it with game_check until there are no problems (its playtest says what bots noticed: fix falling out of the level, getting stuck, scores that never change), then save it with game_save.

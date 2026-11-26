@@ -1,0 +1,194 @@
+{
+  "environments": [
+    {
+      "agent": {
+        "id": "agent-a",
+        "hostingStatus": "running",
+        "tier": "pro",
+        "hardware": {
+          "cpuModel": "AMD EPYC 7763 64-Core Processor",
+          "cpus": 0.5,
+          "hostCpus": 4,
+          "memoryGb": 2,
+          "gpus": [
+            {
+              "name": "NVIDIA L4",
+              "memoryGb": 22.5
+            }
+          ],
+          "os": "Linux 6.1.0",
+          "arch": "x64",
+          "container": true,
+          "runtime": "node v24.21.0",
+          "measuredAt": "2026-11-20T10:00:00.000Z"
+        }
+      },
+      "record": {
+        "version": 1,
+        "agentId": "agent-a",
+        "hosting": "orvyn",
+        "tier": "pro",
+        "plan": {
+          "name": "standard",
+          "vcpu": 1,
+          "memoryGb": 2
+        },
+        "hardware": {
+          "cpuModel": "AMD EPYC 7763 64-Core Processor",
+          "cpus": 0.5,
+          "hostCpus": 4,
+          "memoryGb": 2,
+          "gpus": [
+            {
+              "name": "NVIDIA L4",
+              "memoryGb": 22.5
+            }
+          ],
+          "os": "Linux 6.1.0",
+          "arch": "x64",
+          "container": true,
+          "runtime": "node v24.21.0",
+          "measuredAt": "2026-11-20T10:00:00.000Z"
+        },
+        "hardwareSource": "orvyn",
+        "studio": {
+          "renderers": [
+            "diagram",
+            "html-still",
+            "design-review",
+            "ffmpeg",
+            "html-video",
+            "reel",
+            "manim"
+          ],
+          "workers": "cpu",
+          "maxRenderSeconds": 900,
+          "maxVideoSeconds": 180,
+          "maxResolution": "1920x1920",
+          "maxOutputMb": 500
+        }
+      },
+      "hash": "0x6cf1d5c3f9b2d53aac56ef3ff992b43ff7d1cdf45375460483862a2f24448c93",
+      "summary": "Pro · Orvyn-hosted · 0.5 CPUs, 2 GB, NVIDIA L4 · Studio CPU"
+    },
+    {
+      "agent": {
+        "id": "agent-b",
+        "hostingStatus": "external",
+        "tier": "basic",
+        "hardware": null
+      },
+      "record": {
+        "version": 1,
+        "agentId": "agent-b",
+        "hosting": "self-hosted",
+        "tier": "basic",
+        "plan": null,
+        "hardware": null,
+        "hardwareSource": null,
+        "studio": {
+          "renderers": [
+            "diagram",
+            "html-still",
+            "design-review"
+          ],
+          "workers": "cpu",
+          "maxRenderSeconds": 120,
+          "maxVideoSeconds": 0,
+          "maxResolution": "2560x2560",
+          "maxOutputMb": 50
+        }
+      },
+      "hash": "0x507f22c6770d186e03c852c0850d93c088d41145e8fa2be21e35c0a40498bb88",
+      "summary": "Basic · self-hosted · hardware not reported · Studio CPU"
+    },
+    {
+      "agent": {
+        "id": "agent-c",
+        "hostingStatus": "running",
+        "tier": "studio",
+        "hardware": null
+      },
+      "record": {
+        "version": 1,
+        "agentId": "agent-c",
+        "hosting": "orvyn",
+        "tier": "studio",
+        "plan": {
+          "name": "pro",
+          "vcpu": 2,
+          "memoryGb": 4
+        },
+        "hardware": null,
+        "hardwareSource": null,
+        "studio": {
+          "renderers": [
+            "diagram",
+            "html-still",
+            "design-review",
+            "ffmpeg",
+            "html-video",
+            "reel",
+            "manim",
+            "blender",
+            "ai-video",
+            "world-3d",
+            "world-video",
+            "long-video"
+          ],
+          "workers": "gpu",
+          "maxRenderSeconds": 3600,
+          "maxVideoSeconds": 600,
+          "maxResolution": "3840x3840",
+          "maxOutputMb": 2000
+        }
+      },
+      "hash": "0x6eddcaa88c449cd0426174ec6d616e9469da992d895eb37b9ce51edaa7aa5a9b",
+      "summary": "Studio · Orvyn-hosted · 2 vCPU, 4 GB · Studio GPU"
+    }
+  ],
+  "signRequest": {
+    "body": "{\"merchantTradeNo\":\"ORV1\"}",
+    "secret": "merchant-secret",
+    "timestamp": "1795000000000",
+    "nonce": "abcdefghijABCDEFGHIJabcdefghijAB",
+    "signature": "B60B9D0EEF433343369EDE5472BD54DF6A86A717C1B4F1A57E3A63DB6430F2A21424156F6AB7C75D94343AD49B9C9027BF5AD6523A6CA40B67351880215F4093"
+  },
+  "webhook": {
+    "body": "{\"bizType\":\"PAY\",\"bizStatus\":\"PAY_SUCCESS\",\"data\":\"{\\\"merchantTradeNo\\\":\\\"ORV1\\\",\\\"totalFee\\\":\\\"20.00\\\",\\\"currency\\\":\\\"USDT\\\"}\"}",
+    "timestamp": "1795000000000",
+    "nonce": "nonceABC",
+    "signature": "IlBbV3jGu98GDvLPecDgxslTlVpMsp9bZrpnZPNXwQBVWmELElrvh4WxBH2CWRy8cYf6BabGVd7M/c3H6X2p+IY/3KRCMWXc8o+ONTOBUV857YvKNyuSqnx8jJVPK7FbiZhB8cr5eZUeFVD5F2/7b0GNOr6BYIwCj6vGN1fSsqDTTgRITxTXDhFZpq397vtEbCVE8eoK8dldkWbj4aAU+MIlIF6fHpjtX3/CqfnLnVZcGsbGq+N/A4dwvVbJGHhzXM+uzwI49Rnexsf2JBMTaK+PcjEeDyV5yEay6sH1DnHfQAXZCSCWsbOdkgkl+S+yzzGheo8FeGK2G11vQxipWw==",
+    "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArRnzgpMi0qiVZVVUi6dT\nPhGXl9KPbvV74r1cTyyGCHSkMViLWO1sDEapUMxVelYXP2UwTz9ZlrcpUxybNv+A\nOGwQky05tRn71GllAlqqHdo56NZ7XZtiIZew1mfnFdOXnv4zQqeQJ1F9COhGKO/s\nqPc87LNJVLioC57a+v0qCyfogxlt5pQ7DIH/lPvJoYBb5/IfCifYQ5ojX56GiPXV\nMsOg0/h2xSiKL3hXPVHbGfcclBOJKuGDUnUznwWnOetjlIOHwHGC7Rgej4elGIZc\nAKJ1S1d01vGSzuQ7IL0WnI52sNVEf1/t7+EhirCQnOLg2QARv3SdhkId4Zxux0hG\nHwIDAQAB\n-----END PUBLIC KEY-----\n"
+  },
+  "cents": [
+    {
+      "cents": "0",
+      "text": "0"
+    },
+    {
+      "cents": "5",
+      "text": "0.05"
+    },
+    {
+      "cents": "50",
+      "text": "0.5"
+    },
+    {
+      "cents": "199",
+      "text": "1.99"
+    },
+    {
+      "cents": "2000",
+      "text": "20"
+    },
+    {
+      "cents": "2010",
+      "text": "20.1"
+    },
+    {
+      "cents": "123456",
+      "text": "1234.56"
+    }
+  ]
+}
