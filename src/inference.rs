@@ -370,6 +370,181 @@ pub async fn complete(account: &str, source: &str, body: Value, on_chunk: Option
     Ok((reply, usage))
 }
 
+// ---------- Anthropic-style requests (Messages API), for Claude Code ----------
+
+/// Fields Messages callers may set; anything else is dropped.
+const MESSAGES_ALLOWED: &[&str] = &["model", "messages", "system", "max_tokens", "metadata", "stop_sequences", "stream", "temperature", "top_p", "top_k", "tools", "tool_choice", "thinking"];
+
+/// A Messages model name as Orvyn serves it: Claude Code may add "[1m]" (a 1M-token context hint).
+fn messages_model(raw: &str) -> String {
+    raw.trim().trim_end_matches("[1m]").trim().to_string()
+}
+
+/// Usage as an Anthropic client expects it: tokens only, nothing about the upstream or its cost.
+fn scrub_messages_usage(v: &mut Value) {
+    let scrub = |u: Option<&mut Value>| {
+        if let Some(o) = u.and_then(Value::as_object_mut) {
+            for k in ["cost", "cost_details", "is_byok", "iterations"] {
+                o.remove(k);
+            }
+        }
+    };
+    scrub(v.get_mut("usage"));
+    scrub(v.get_mut("message").and_then(|m| m.get_mut("usage")));
+    if let Some(o) = v.as_object_mut() {
+        o.remove("provider");
+        o.remove("openrouter_metadata");
+    }
+}
+
+/// Input tokens of a Messages usage object: fresh plus cache writes and reads.
+fn messages_input(u: &Value) -> u64 {
+    ["input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"].iter().map(|k| u[*k].as_u64().unwrap_or(0)).sum()
+}
+
+/// One Anthropic Messages request for `account`, charged like any Orvyn AI request. With
+/// `on_event`, it streams: each server-sent event (its name and data) is handed over as it
+/// arrives. `beta` passes the client's anthropic-beta header on.
+pub async fn messages(account: &str, source: &str, body: Value, beta: Option<&str>, on_event: Option<&(dyn Fn(&str, &Value) + Send + Sync)>) -> Result<(Option<Value>, Usage)> {
+    let key = upstream_key()?;
+    let Some(obj) = body.as_object() else { return Err(Error::invalid("The request body must be a JSON object.")) };
+    let model = messages_model(obj.get("model").and_then(Value::as_str).unwrap_or(""));
+    if model.is_empty() {
+        return Err(Error::invalid("model is required."));
+    }
+    if model == ORVYN_MODEL {
+        return Err(Error::invalid("Orvyn Model is coming soon. Pick another model for now."));
+    }
+    let cat = catalog().await?;
+    let info = cat.get(&model).cloned().ok_or_else(|| Error::invalid(format!("Orvyn AI doesn't serve {model}. GET /v1/models lists the models.")))?;
+    if !obj.get("messages").is_some_and(|m| m.as_array().is_some_and(|a| !a.is_empty())) {
+        return Err(Error::invalid("messages must be a non-empty array."));
+    }
+
+    let vyn = source == "vyn";
+    let balance = credits::balance(account).await?.max(0) + if vyn { credits::vyn_allowance_left(account).await? } else { 0 };
+    if balance < MIN_BALANCE_MICRO {
+        return Err(Error::payment_required("You're out of Orvyn credits. Top up at app.orvyn.cash/credits to keep going."));
+    }
+    let k = markup();
+    let input_chars = ["messages", "system", "tools"].iter().map(|f| serde_json::to_string(&obj.get(*f)).map(|s| s.len()).unwrap_or(0)).sum::<usize>();
+    let input_estimate = (input_chars as f64 / 3.0).ceil();
+    let left = balance as f64 / MICRO - input_estimate * info.prompt * k;
+    let affordable = if left > 0.0 { (left / (info.completion * k).max(1e-12)).floor() as u64 } else { 0 };
+    if affordable < 64 {
+        return Err(Error::payment_required("Not enough Orvyn credits for this request. Top up at app.orvyn.cash/credits, or pick a cheaper model."));
+    }
+    let requested = obj.get("max_tokens").and_then(Value::as_u64).unwrap_or(DEFAULT_MAX_TOKENS);
+    let max_tokens = requested.clamp(1, MAX_TOKENS_CAP).min(affordable);
+
+    let mut up = Map::new();
+    for (name, v) in obj {
+        if MESSAGES_ALLOWED.contains(&name.as_str()) {
+            up.insert(name.clone(), v.clone());
+        }
+    }
+    let stream = on_event.is_some();
+    up.insert("model".into(), json!(model));
+    up.insert("max_tokens".into(), json!(max_tokens));
+    up.insert("stream".into(), json!(stream));
+    // The person's account never goes upstream: a hash stands in for abuse reports.
+    up.insert("metadata".into(), json!({ "user_id": hex::encode(&<sha2::Sha256 as sha2::Digest>::digest(format!("orvyn:{account}").as_bytes())[..12]) }));
+
+    let mut req = crate::http::client()
+        .post(format!("{}/messages", upstream_base()))
+        .bearer_auth(key)
+        .header("anthropic-version", "2023-06-01")
+        .header("HTTP-Referer", "https://orvyn.cash")
+        .header("X-Title", "Orvyn")
+        .timeout(Duration::from_secs(900))
+        .json(&Value::Object(up));
+    if let Some(b) = beta.filter(|b| !b.is_empty() && b.len() < 500) {
+        req = req.header("anthropic-beta", b);
+    }
+    let res = req.send().await.map_err(|e| {
+        eprintln!("[inference] upstream (messages): {e}");
+        Error::unavailable("The model didn't answer. Try again in a moment.")
+    })?;
+    let status = res.status().as_u16();
+    if !(200..300).contains(&status) {
+        let text = res.text().await.unwrap_or_default();
+        return Err(upstream_error(status, &text));
+    }
+
+    let mut usage = Usage { model: model.clone(), ..Default::default() };
+    let mut upstream_cost: Option<f64> = None;
+    let reply = if let Some(push) = on_event {
+        use futures_util::StreamExt;
+        let mut reader = crate::ai::SseReader::new();
+        let mut bytes = res.bytes_stream();
+        let mut failed: Option<String> = None;
+        while let Some(chunk) = bytes.next().await {
+            let Ok(chunk) = chunk else {
+                failed = Some("The model's reply was cut off.".into());
+                break;
+            };
+            for data in reader.push(&chunk) {
+                let Ok(mut ev) = serde_json::from_str::<Value>(&data) else { continue };
+                let kind = ev["type"].as_str().unwrap_or("").to_string();
+                match kind.as_str() {
+                    "message_start" => {
+                        let u = &ev["message"]["usage"];
+                        usage.input_tokens = messages_input(u);
+                        usage.output_tokens = u["output_tokens"].as_u64().unwrap_or(0);
+                        upstream_cost = u["cost"].as_f64().or(upstream_cost);
+                    }
+                    "message_delta" => {
+                        let u = &ev["usage"];
+                        if let Some(o) = u["output_tokens"].as_u64() {
+                            usage.output_tokens = o;
+                        }
+                        let input = messages_input(u);
+                        if input > 0 {
+                            usage.input_tokens = input;
+                        }
+                        upstream_cost = u["cost"].as_f64().or(upstream_cost);
+                    }
+                    "content_block_delta" => {
+                        if let Some(t) = ev["delta"]["text"].as_str() {
+                            usage.text.push_str(t);
+                        }
+                    }
+                    "error" => {
+                        failed = Some(ev["error"]["message"].as_str().map(clean_message).unwrap_or_else(|| "The model stopped with an error.".into()));
+                        if let Some(m) = ev["error"]["message"].as_str() {
+                            ev["error"]["message"] = json!(clean_message(m));
+                        }
+                    }
+                    _ => {}
+                }
+                scrub_messages_usage(&mut ev);
+                push(&kind, &ev);
+            }
+        }
+        if usage.input_tokens == 0 && usage.output_tokens == 0 {
+            // No usage (cut off): charge an estimate.
+            usage.input_tokens = input_estimate as u64;
+            usage.output_tokens = (usage.text.len() as f64 / 4.0).ceil() as u64;
+        }
+        usage.micro = cost_micro(&info, upstream_cost, usage.input_tokens, usage.output_tokens);
+        settle(account, source, usage.micro, &model, usage.input_tokens, usage.output_tokens).await?;
+        if let Some(m) = failed.filter(|_| usage.text.is_empty() && usage.output_tokens == 0) {
+            return Err(Error::new(Kind::Unavailable, m));
+        }
+        None
+    } else {
+        let mut v: Value = res.json().await.map_err(|e| Error::internal(format!("upstream reply: {e}")))?;
+        usage.input_tokens = messages_input(&v["usage"]);
+        usage.output_tokens = v["usage"]["output_tokens"].as_u64().unwrap_or(0);
+        usage.micro = cost_micro(&info, v["usage"]["cost"].as_f64(), usage.input_tokens, usage.output_tokens);
+        usage.text = v["content"].as_array().map(|a| a.iter().filter_map(|b| b["text"].as_str()).collect::<Vec<_>>().join("")).unwrap_or_default();
+        settle(account, source, usage.micro, &model, usage.input_tokens, usage.output_tokens).await?;
+        scrub_messages_usage(&mut v);
+        Some(v)
+    };
+    Ok((reply, usage))
+}
+
 // ---------- Chat in the app ----------
 
 const HISTORY: i64 = 40;

@@ -291,6 +291,31 @@ pub async fn key_owner(secret: &str) -> Result<Option<(String, Option<String>)>>
     Ok(sqlx::query_as("update inference_keys set last_used_at = now() where key_hash = $1 and revoked_at is null returning account_id, purpose").bind(key_hash(secret)).fetch_optional(db()).await?)
 }
 
+/// Vyness's Orvyn AI key for one computer (signed in with `vyness login`): a new sign-in on the
+/// same computer replaces the old key. Not counted against the key limit.
+pub async fn create_vyness_key(account_id: &str, device: &str) -> Result<String> {
+    let account = account_id.to_lowercase();
+    let device: String = device.trim().chars().filter(|c| !c.is_control()).take(40).collect();
+    let name = format!("Vyness · {}", if device.is_empty() { "this computer" } else { device.as_str() });
+    sqlx::query("update inference_keys set revoked_at = now() where account_id = $1 and purpose = 'vyness' and name = $2 and revoked_at is null").bind(&account).bind(&name).execute(db()).await?;
+    let live: i64 = sqlx::query_scalar("select count(*) from inference_keys where account_id = $1 and purpose = 'vyness' and revoked_at is null").bind(&account).fetch_one(db()).await?;
+    if live >= 20 {
+        return Err(Error::conflict("Vyness is signed in on 20 computers. Revoke one at app.orvyn.cash/credits first."));
+    }
+    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let body: String = (0..40).map(|_| ALPHABET[rand::random_range(0..ALPHABET.len())] as char).collect();
+    let secret = format!("orv_sk_{body}");
+    sqlx::query("insert into inference_keys (id, account_id, name, key_hash, hint, purpose) values ($1, $2, $3, $4, $5, 'vyness')")
+        .bind(crate::lifecycle::uuid_v4())
+        .bind(&account)
+        .bind(&name)
+        .bind(key_hash(&secret))
+        .bind(format!("orv_sk_…{}", &body[body.len() - 4..]))
+        .execute(db())
+        .await?;
+    Ok(secret)
+}
+
 /// Vyn's built-in Orvyn AI key for an account (not counted against the key limit; one live at a time).
 pub async fn create_vyn_key(account_id: &str) -> Result<String> {
     let account = account_id.to_lowercase();

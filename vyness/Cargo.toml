@@ -1,0 +1,17 @@
+[package]
+name = "vyness"
+version = "0.1.0"
+description = "Vyness: run Claude Code, OpenCode, Aider or any OpenAI-compatible coding agent on Orvyn AI, paid from your Orvyn credits."
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/OrvynOS/Core"
+
+[[bin]]
+name = "vyness"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }

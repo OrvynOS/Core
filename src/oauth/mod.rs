@@ -63,9 +63,10 @@ pub const SCOPES: &[(&str, &str)] = &[
     ("vyn", "Use Vyn, your Orvyn assistant: your conversations and settings"),
     ("agents", "Connect your self-hosted agents to Orvyn (their page, identity and activity)"),
     ("social", "Use Orvyn Social as you: read feeds, post, comment, repost and follow"),
+    ("inference", "Use Orvyn AI with your Orvyn credits (coding agents on this computer)"),
 ];
 /// Scopes only Orvyn's own apps may hold.
-const FIRST_PARTY_SCOPES: &[&str] = &["vyn", "agents"];
+const FIRST_PARTY_SCOPES: &[&str] = &["vyn", "agents", "inference"];
 
 fn known_scope(s: &str) -> bool {
     SCOPES.iter().any(|(k, _)| *k == s)
@@ -375,6 +376,8 @@ fn first_party(id: &str) -> Option<ClientInput> {
         // Orvyn Social on the web (and its local development server).
         "orv_social" => Some(c("Orvyn Social", "https://social.orvyn.cash/callback http://social.localhost:3000/callback", &["openid", "profile", "agent", "offline_access", "social"])),
         "orv_agent_runtime" => Some(c("Orvyn agent (self-hosted)", "http://localhost/orvyn-agent", &["openid", "agents"])),
+        // Vyness, the command line that runs coding agents on Orvyn AI (device sign-in).
+        "orv_vyness" => Some(c("Vyness", "http://localhost/vyness", &["openid", "profile", "inference"])),
         _ => None,
     }
 }

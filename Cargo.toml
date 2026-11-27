@@ -67,4 +67,4 @@ debug = "line-tables-only"
 debug = false
 
 [workspace]
-members = ["admin", "mcp"]
+members = ["admin", "mcp", "vyness"]
