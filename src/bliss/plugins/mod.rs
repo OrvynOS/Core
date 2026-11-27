@@ -1,5 +1,6 @@
 //! The first-party plugin library.
 
+pub mod agentic_wallet;
 pub mod automation;
 pub mod binance;
 pub mod chain;
@@ -26,6 +27,7 @@ pub fn all() -> Vec<Arc<dyn Plugin>> {
         record::venus(),
         perps::perps(),
         binance::binance(),
+        agentic_wallet::agentic_wallet(),
         record::track_record_plugin(),
         chain::prediction_markets(),
         markets::polymarket(),

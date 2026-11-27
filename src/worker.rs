@@ -23,7 +23,7 @@ fn minutes(n: f64) -> f64 {
     n * 60.0
 }
 
-pub const ORCHESTRATOR_TASKS: &[&str] = &["launch", "sync-launch", "agent-id", "billing", "self-hosted-tier", "hires"];
+pub const ORCHESTRATOR_TASKS: &[&str] = &["launch", "sync-launch", "agent-id", "orvyn-id", "billing", "self-hosted-tier", "hires"];
 pub const AGENT_TASKS: &[&str] = &["income", "autopilot"];
 
 /// (seconds between runs, whether it applies to this agent) for a core task.
@@ -36,6 +36,8 @@ fn schedule(task: &str, a: &Agent) -> Option<(f64, bool)> {
         "sync-launch" => (minutes(5.0), live && a.token_address.is_some() && !a.graduated),
         // Binance Agent ID (premium): still held by the agent or its owner?
         "agent-id" => (minutes(60.0), a.agent_id_name.is_some()),
+        // OrvynID NFT: issued to live agents, and kept in line (handle, wallet, ERC-8004, Agent ID).
+        "orvyn-id" => (minutes(30.0), live && a.handle.is_some() && crate::orvyn_id::enabled()),
         // Self-hosted agents aren't hosted or billed by Orvyn...
         "billing" => (minutes(5.0), a.hosting_status != "external"),
         // ...but they can buy a tier in the registry; mirror it while it's paid.
@@ -60,6 +62,7 @@ async fn run_core(task: &str, agent: Agent) -> Result<()> {
         "launch" => crate::lifecycle::try_launch(agent).await.map(drop),
         "sync-launch" => crate::lifecycle::sync_launch(agent).await.map(drop),
         "agent-id" => crate::agentid::recheck_agent_id(&agent).await.map(drop),
+        "orvyn-id" => crate::orvyn_id::sync(&agent).await.map(drop),
         "billing" => crate::subscription::run_billing(agent).await.map(drop),
         "self-hosted-tier" => crate::billing::sync_self_hosted_tier(agent).await.map(drop),
         "hires" => crate::hires::sync_agent_hires(&agent.id).await,

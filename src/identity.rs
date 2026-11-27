@@ -155,6 +155,11 @@ pub async fn identity_document(agent: &Agent) -> Result<Value> {
         "environment": crate::environment::public_environment(agent),
         "issuedAt": iso(chrono::Utc::now()),
     });
+    let mut document = document;
+    // The agent's OrvynID NFT (non-transferable), once it has one.
+    if let Some(nft) = crate::orvyn_id::document_entry(&agent.id).await {
+        document["nft"] = nft;
+    }
     let Some(key) = e.orvyn_attestation_key.as_deref() else { return Ok(json!({ "document": document, "attestation": null })) };
     let signer: PrivateKeySigner = key.parse().map_err(|_| Error::unavailable("ORVYN_ATTESTATION_KEY isn't a key"))?;
     let signature = signer.sign_message_sync(document.to_string().as_bytes()).map_err(|e| Error::internal(e.to_string()))?;

@@ -381,7 +381,7 @@ fn quote_of(symbol: &str) -> Option<&'static str> {
 }
 
 /// Binance's public price for a symbol (spot, then USDⓈ-M futures).
-async fn market_price(symbol: &str) -> Option<f64> {
+pub(crate) async fn market_price(symbol: &str) -> Option<f64> {
     let spot = var("BINANCE_SPOT_API").unwrap_or_else(|| "https://api.binance.com".into());
     let futures = var("BINANCE_FUTURES_API").unwrap_or_else(|| "https://fapi.binance.com".into());
     for url in [format!("{spot}/api/v3/ticker/price?symbol={symbol}"), format!("{futures}/fapi/v1/ticker/price?symbol={symbol}")] {

@@ -127,6 +127,13 @@
       "when": 1795824000000,
       "tag": "0017_social",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795910400000,
+      "tag": "0018_binance_agentic_wallet",
+      "breakpoints": true
     }
   ]
 }
