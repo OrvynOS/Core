@@ -7,6 +7,7 @@
 //!   orvyn-admin wallet-check <agent id | handle> | --new can an agent's wallet sign?
 //!   orvyn-admin privy-policy [--print]                   create the Privy wallet policies
 //!   orvyn-admin grant-credits <email | 0x account> <usd>  add Orvyn credits (logged as an adjustment)
+//!   orvyn-admin orvyn-hosting-price [--execute]          set hosting's $ORVYN price (2.5% off) on the registry
 //!   orvyn-admin preview-db [port]                        a throwaway local database with demo agents
 //!   orvyn-admin new-migration <name>                     add an empty migration to crates/core
 //!   orvyn-admin fixture orvynpay [out-dir]               contracts/test/fixtures/deposit.json
@@ -23,6 +24,7 @@ orvyn-admin hold <agent id | handle> \"<reason>\" | --release
 orvyn-admin wallet-check <agent id | handle> | --new
 orvyn-admin privy-policy [--print]
 orvyn-admin grant-credits <email | 0x account> <usd>
+orvyn-admin orvyn-hosting-price [--execute]
 orvyn-admin preview-db [port]
 orvyn-admin new-migration <name>
 orvyn-admin fixture orvynpay|rng [out-dir]";
@@ -47,6 +49,7 @@ async fn run() -> Result<()> {
         Some("wallet-check") => ops::wallet_check(arg(1)).await,
         Some("privy-policy") => ops::privy_policy(args.iter().any(|a| a == "--print")).await,
         Some("grant-credits") => ops::grant_credits(arg(1), arg(2)).await,
+        Some("orvyn-hosting-price") => ops::orvyn_hosting_price(args.iter().any(|a| a == "--execute")).await,
         Some("preview-db") => preview::run(arg(1).and_then(|p| p.parse().ok()).unwrap_or(5433)).await,
         Some("new-migration") => ops::new_migration(arg(1)),
         Some("fixture") => match arg(1) {

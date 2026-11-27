@@ -105,6 +105,37 @@ pub async fn grant_credits(who: Option<&str>, usd: Option<&str>) -> Result<()> {
     Ok(())
 }
 
+/// Hosting in $ORVYN: the registry's USDT price for a month of Basic, 2.5% off, at $ORVYN's market
+/// price, as a fixed amount of $ORVYN per month. Prints it; with --execute the registry's owner
+/// (DEPLOYER_PRIVATE_KEY) sets it on chain. Run it again as the price moves.
+pub async fn orvyn_hosting_price(execute: bool) -> Result<()> {
+    sol! {
+        function setPrice(address token, uint256 price);
+    }
+    service::init_env()?;
+    let token = orvyn_core::orvyn_token::contract().ok_or_else(|| anyhow!("set ORVYN_TOKEN_CONTRACT first ($ORVYN isn't live)"))?;
+    let config = orvyn_core::billing::registry_config().await.map_err(core_err)?;
+    let usdt = orvyn_core::evm::BSC.usdt.to_lowercase();
+    let month_usdt: alloy::primitives::U256 = config.prices.get(&usdt).and_then(|p| p.parse().ok()).ok_or_else(|| anyhow!("the registry has no USDT price to base it on"))?;
+    let month_usd = orvyn_core::evm::from_units(month_usdt, 18);
+    let token_usd = orvyn_core::orvyn_token::usd_price().await.map_err(core_err)?;
+    let units = orvyn_core::orvyn_token::discounted_units(month_usd, token_usd);
+    println!(
+        "Basic hosting: ${month_usd:.2}/month; $ORVYN at ${token_usd:.6}; 2.5% off: {:.4} $ORVYN/month (higher tiers scale from it)",
+        orvyn_core::evm::from_units(units, 18)
+    );
+    if !execute {
+        println!("dry run: add --execute to set it on the registry ({})", config.contract);
+        return Ok(());
+    }
+    let key = std::env::var("DEPLOYER_PRIVATE_KEY").map_err(|_| anyhow!("DEPLOYER_PRIVATE_KEY (the registry's owner) is needed to set prices"))?;
+    let registry: Address = config.contract.parse()?;
+    let data = setPriceCall { token: token.parse()?, price: units }.abi_encode();
+    let hash = orvyn_core::wallets::send_from_key(&key, registry, data.into(), alloy::primitives::U256::ZERO).await.map_err(core_err)?;
+    println!("set: {hash:#x}");
+    Ok(())
+}
+
 pub async fn hold(r: Option<&str>, reason: Option<&str>) -> Result<()> {
     let (Some(r), Some(reason)) = (r, reason) else { bail!("usage: orvyn-admin hold <agent id | handle> \"<reason>\" | --release") };
     connect()?;

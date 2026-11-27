@@ -38,6 +38,7 @@ pub mod lifecycle;
 pub mod oauth;
 pub mod mail;
 pub mod orvyn_id;
+pub mod orvyn_token;
 pub mod orvynpay;
 pub mod portfolio;
 pub mod price;

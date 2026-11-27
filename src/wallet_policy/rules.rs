@@ -115,13 +115,17 @@ fn check_registry_call(data: &[u8], value: U256, agent: &EvmAgent, spends: &mut 
         add_spend(spends, "bnb", value);
         return Ok(format!("hosting paid with {value} wei"));
     }
-    if !cfg().stablecoins.contains(&token) {
+    let orvyn = crate::orvyn_token::contract().is_some_and(|a| a == token);
+    if !cfg().stablecoins.contains(&token) && !orvyn {
         return Err(refuse("hosting is paid in BNB, USDT or USDC"));
     }
     if value != U256::ZERO {
         return Err(refuse("no BNB may be attached to a token payment"));
     }
-    add_spend(spends, "usd", usd_micros(call.amount));
+    // $ORVYN is priced by the registry's owner; only stablecoins count against the USD cap.
+    if !orvyn {
+        add_spend(spends, "usd", usd_micros(call.amount));
+    }
     Ok(format!("hosting paid with {} of {}", call.amount, call.token))
 }
 
@@ -201,10 +205,11 @@ pub async fn check_evm_transaction(tx: &TxRequest, agent: &EvmAgent, grant: Opti
                 return ok(s, spends);
             }
             if c.registry.as_deref() == Some(spender.as_str()) {
-                if !c.stablecoins.contains(&to) {
+                let orvyn = crate::orvyn_token::contract().is_some_and(|t| t == to);
+                if !c.stablecoins.contains(&to) && !orvyn {
                     return Err(refuse("the registry may only be approved for USDT or USDC"));
                 }
-                if usd_micros(a.amount) > c.daily_cap_usd {
+                if !orvyn && usd_micros(a.amount) > c.daily_cap_usd {
                     return Err(refuse("approval above the daily USD cap"));
                 }
                 return ok(format!("approve {} of {to} for the registry", a.amount), spends);

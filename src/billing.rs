@@ -99,7 +99,14 @@ pub async fn registry_config() -> Result<RegistryConfig> {
         contract: registry_contract()?.to_string(),
         prices: base.iter().map(|(t, p)| (t.clone(), p.to_string())).collect(),
         tier_prices,
-        tokens: json!({ "usdt": BSC.usdt, "usdc": BSC.usdc, "bnb": NATIVE_TOKEN }),
+        tokens: {
+            let mut t = json!({ "usdt": BSC.usdt, "usdc": BSC.usdc, "bnb": NATIVE_TOKEN });
+            // $ORVYN, 2.5% off, once it's live and the registry prices it.
+            if let Some(a) = crate::orvyn_token::contract() {
+                t["orvyn"] = json!(a);
+            }
+            t
+        },
         decimals: 18,
     })
 }
@@ -302,7 +309,10 @@ pub async fn pay_from_treasury(agent: &Agent, months: i32, label: &str) -> Resul
     let tier = Tier::from_index(registry_agent(&agent.id).await?.map(|r| r.tier as u64).unwrap_or(0));
     let owner = agent.evm_address.clone();
     let reg = registry_contract()?;
-    for (token, symbol) in [(BSC.usdt, "USDT"), (BSC.usdc, "USDC")] {
+    // $ORVYN first (2.5% off), then USDT and USDC.
+    let orvyn = crate::orvyn_token::contract();
+    let tokens: Vec<(&str, &str)> = orvyn.as_deref().map(|a| (a, "$ORVYN")).into_iter().chain([(BSC.usdt, "USDT"), (BSC.usdc, "USDC")]).collect();
+    for (token, symbol) in tokens {
         let price = month_price(&config, tier, token);
         if price == U256::ZERO {
             continue;

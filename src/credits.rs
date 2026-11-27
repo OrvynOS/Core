@@ -111,6 +111,15 @@ pub async fn adjust(account_id: &str, usd_amount: f64) -> Result<i64> {
 pub async fn summary(account_id: &str) -> Result<Value> {
     let bal = balance(account_id).await?;
     let entries = history(account_id, 50).await?;
+    let orvyn = crate::orvyn_token::contract();
+    let mut tokens = vec![
+        json!({ "symbol": "BNB", "address": null, "decimals": 18 }),
+        json!({ "symbol": "USDT", "address": BSC.usdt, "decimals": 18 }),
+        json!({ "symbol": "USDC", "address": BSC.usdc, "decimals": 18 }),
+    ];
+    if let Some(a) = &orvyn {
+        tokens.push(json!({ "symbol": crate::orvyn_token::SYMBOL, "address": a, "decimals": crate::orvyn_token::DECIMALS, "discountBps": crate::orvyn_token::DISCOUNT_BPS }));
+    }
     Ok(json!({
         "usd": usd(bal),
         "deposit": {
@@ -118,12 +127,10 @@ pub async fn summary(account_id: &str) -> Result<Value> {
             "chain": "BNB Chain",
             "chainId": BSC.chain_id,
             "minUsd": MIN_DEPOSIT_USD,
-            "tokens": [
-                { "symbol": "BNB", "address": null, "decimals": 18 },
-                { "symbol": "USDT", "address": BSC.usdt, "decimals": 18 },
-                { "symbol": "USDC", "address": BSC.usdc, "decimals": 18 },
-            ],
+            "tokens": tokens,
         },
+        // Paying with $ORVYN costs 2.5% less; until it launches the app says so ("soon").
+        "orvyn": { "live": orvyn.is_some(), "symbol": crate::orvyn_token::SYMBOL, "discountBps": crate::orvyn_token::DISCOUNT_BPS },
         "entries": entries.iter().map(entry_view).collect::<Vec<_>>(),
     }))
 }
@@ -131,10 +138,19 @@ pub async fn summary(account_id: &str) -> Result<Value> {
 /// The wallet call for a stablecoin top-up (BNB is a plain send to the deposit address).
 pub fn deposit_call(symbol: &str, amount: f64) -> Result<Value> {
     let to = deposit_address().ok_or_else(|| Error::unavailable("Credit top-ups aren't open yet."))?;
+    // $ORVYN: `amount` is a number of tokens (its USD value is checked when the deposit lands).
+    if symbol == crate::orvyn_token::SYMBOL {
+        let token = crate::orvyn_token::contract().ok_or_else(|| Error::invalid("$ORVYN isn't live yet."))?;
+        if !(amount.is_finite() && amount > 0.0 && amount <= 1e12) {
+            return Err(Error::invalid("Enter how many $ORVYN to send."));
+        }
+        let data = evm::IERC20::transferCall { to: evm::parse_address(&to)?, amount: evm::to_units(amount, crate::orvyn_token::DECIMALS as u8) }.abi_encode();
+        return Ok(json!({ "to": token, "data": format!("0x{}", hex::encode(data)), "value": "0" }));
+    }
     let token = match symbol {
         "USDT" => BSC.usdt,
         "USDC" => BSC.usdc,
-        _ => return Err(Error::invalid("Top up with USDT or USDC here; BNB is a plain send.")),
+        _ => return Err(Error::invalid("Top up with USDT, USDC or $ORVYN here; BNB is a plain send.")),
     };
     if !(amount.is_finite() && amount >= MIN_DEPOSIT_USD && amount <= 100_000.0) {
         return Err(Error::invalid(format!("Top up at least ${MIN_DEPOSIT_USD}.")));
@@ -166,8 +182,10 @@ pub async fn record_deposit(account_id: &str, tx_hash: &str) -> Result<CreditEnt
     let from = evm::parse_address(&account)?;
     let to_addr = evm::parse_address(&to)?;
     let (mut symbol, mut amount) = (None, U256::ZERO);
+    let orvyn = crate::orvyn_token::contract();
+    let accepted: Vec<(&str, &str)> = [(BSC.usdt, "USDT"), (BSC.usdc, "USDC")].into_iter().chain(orvyn.as_deref().map(|a| (a, crate::orvyn_token::SYMBOL))).collect();
     for log in receipt.inner.logs() {
-        let Some(s) = [(BSC.usdt, "USDT"), (BSC.usdc, "USDC")].into_iter().find(|(a, _)| a.eq_ignore_ascii_case(&format!("{:#x}", log.address()))) else { continue };
+        let Some(s) = accepted.iter().copied().find(|(a, _)| a.eq_ignore_ascii_case(&format!("{:#x}", log.address()))) else { continue };
         if let Ok(ev) = evm::IERC20::Transfer::decode_log_data(log.data()) {
             if ev.from == from && ev.to == to_addr {
                 symbol = Some(s.1);
@@ -186,19 +204,23 @@ pub async fn record_deposit(account_id: &str, tx_hash: &str) -> Result<CreditEnt
         }
     }
     let Some(symbol) = symbol.filter(|_| amount > U256::ZERO) else {
-        return Err(Error::invalid("That transaction doesn't send BNB, USDT or USDC from your wallet to Orvyn's deposit address."));
+        return Err(Error::invalid("That transaction doesn't send BNB, USDT, USDC or $ORVYN from your wallet to Orvyn's deposit address."));
     };
     let units = evm::from_units(amount, 18);
     let usd_value = if symbol == "BNB" {
         let price = crate::price::sources_median("BNB / USD").await.ok_or_else(|| Error::unavailable("Can't price BNB right now. Try again in a minute; your deposit is safe."))?;
         units * price
+    } else if symbol == crate::orvyn_token::SYMBOL {
+        units * crate::orvyn_token::usd_price().await.map_err(|_| Error::unavailable("Can't price $ORVYN right now. Try again in a minute; your deposit is safe."))?
     } else {
         units
     };
     if usd_value + 1e-9 < MIN_DEPOSIT_USD {
         return Err(Error::invalid(format!("Deposits start at ${MIN_DEPOSIT_USD}. Send a little more and submit both.")));
     }
-    let micro = (usd_value * MICRO).floor() as i64;
+    // $ORVYN costs 2.5% less: its market value buys more credit.
+    let credited = if symbol == crate::orvyn_token::SYMBOL { crate::orvyn_token::credits_for(usd_value) } else { usd_value };
+    let micro = (credited * MICRO).floor() as i64;
     apply(&account, micro, json!({ "kind": "deposit", "txHash": hash, "token": symbol, "amount": format!("{units}") })).await?;
     Ok(sqlx::query_as("select * from credit_ledger where tx_hash = $1").bind(&hash).fetch_one(db()).await?)
 }
