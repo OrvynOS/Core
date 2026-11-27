@@ -93,8 +93,24 @@ fn api_root(api: &str) -> String {
 
 // ---------- Settings for the agents ----------
 
+/// Claude Code's Opus, Sonnet and Haiku tiers on the models Orvyn AI serves right now: each tier
+/// falls back to the nearest one available (a model can be hidden while it's unavailable).
+fn tiers(available: &[String]) -> [String; 3] {
+    let has = |m: &str| available.iter().any(|a| a == m);
+    let pick = |order: &[&str]| order.iter().find(|m| has(m)).map(|m| m.to_string()).or_else(|| available.first().cloned()).unwrap_or_else(|| order[0].to_string());
+    [pick(&[OPUS, SONNET, HAIKU]), pick(&[SONNET, OPUS, HAIKU]), pick(&[HAIKU, SONNET, OPUS])]
+}
+
+async fn available_models(c: &Config) -> Vec<String> {
+    get_json(c, "/v1/models").await.ok().and_then(|v| v["data"].as_array().map(|a| a.iter().filter_map(|m| m["id"].as_str().map(String::from)).collect())).unwrap_or_default()
+}
+
 /// The environment that points a coding agent at Orvyn AI.
 fn agent_env(c: &Config, model: Option<&str>) -> BTreeMap<String, String> {
+    agent_env_with(c, model, &[OPUS.into(), SONNET.into(), HAIKU.into()])
+}
+
+fn agent_env_with(c: &Config, model: Option<&str>, tiers: &[String; 3]) -> BTreeMap<String, String> {
     let root = api_root(&c.api);
     let openai = format!("{root}/v1");
     let mut e = BTreeMap::new();
@@ -105,10 +121,10 @@ fn agent_env(c: &Config, model: Option<&str>) -> BTreeMap<String, String> {
     set("ANTHROPIC_BASE_URL", &root);
     set("ANTHROPIC_AUTH_TOKEN", &c.key);
     set("ANTHROPIC_API_KEY", "");
-    set("ANTHROPIC_DEFAULT_OPUS_MODEL", OPUS);
-    set("ANTHROPIC_DEFAULT_SONNET_MODEL", SONNET);
-    set("ANTHROPIC_DEFAULT_HAIKU_MODEL", HAIKU);
-    set("ANTHROPIC_SMALL_FAST_MODEL", HAIKU);
+    set("ANTHROPIC_DEFAULT_OPUS_MODEL", &tiers[0]);
+    set("ANTHROPIC_DEFAULT_SONNET_MODEL", &tiers[1]);
+    set("ANTHROPIC_DEFAULT_HAIKU_MODEL", &tiers[2]);
+    set("ANTHROPIC_SMALL_FAST_MODEL", &tiers[2]);
     if let Some(m) = model {
         set("ANTHROPIC_MODEL", m);
     }
@@ -161,13 +177,38 @@ fn aider_args(args: &[String], model: &str) -> Vec<String> {
     out
 }
 
+/// Where the agents' own installers put them, for when that folder isn't on PATH.
+fn known_locations(program: &str) -> Vec<PathBuf> {
+    let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from);
+    let mut out = Vec::new();
+    let exe = if cfg!(windows) { format!("{program}.exe") } else { program.to_string() };
+    if let Some(h) = &home {
+        out.push(h.join(".local").join("bin").join(&exe));
+        out.push(h.join(".claude").join("local").join(&exe));
+        out.push(h.join(format!(".{program}")).join("bin").join(&exe));
+        out.push(h.join(".npm-global").join("bin").join(program));
+    }
+    if cfg!(windows) {
+        if let Some(a) = std::env::var_os("APPDATA") {
+            out.push(PathBuf::from(a).join("npm").join(format!("{program}.cmd")));
+        }
+    }
+    out.into_iter().filter(|p| p.is_file()).collect()
+}
+
 fn run_with(program: &str, args: &[String], env: &BTreeMap<String, String>) -> Result<ExitCode> {
-    let spawn = |name: &str| Command::new(name).args(args).envs(env).status();
-    let status = match spawn(program) {
-        // npm installs Claude Code and OpenCode as .cmd shims on Windows.
-        Err(e) if cfg!(windows) && e.kind() == std::io::ErrorKind::NotFound => spawn(&format!("{program}.cmd")),
-        other => other,
-    };
+    let spawn = |name: &std::ffi::OsStr| Command::new(name).args(args).envs(env).status();
+    let mut status = spawn(program.as_ref());
+    // npm installs Claude Code and OpenCode as .cmd shims on Windows.
+    if cfg!(windows) && matches!(&status, Err(e) if e.kind() == std::io::ErrorKind::NotFound) {
+        status = spawn(format!("{program}.cmd").as_ref());
+    }
+    for path in known_locations(program) {
+        if !matches!(&status, Err(e) if e.kind() == std::io::ErrorKind::NotFound) {
+            break;
+        }
+        status = spawn(path.as_os_str());
+    }
     match status {
         Ok(s) => Ok(ExitCode::from(s.code().unwrap_or(1).clamp(0, 255) as u8)),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => bail!("`{program}` isn't installed or isn't on your PATH.{}", install_hint(program)),
@@ -177,7 +218,8 @@ fn run_with(program: &str, args: &[String], env: &BTreeMap<String, String>) -> R
 
 fn install_hint(program: &str) -> &'static str {
     match program {
-        "claude" => " Install Claude Code: npm install -g @anthropic-ai/claude-code",
+        "claude" if cfg!(windows) => " Install Claude Code (PowerShell): irm https://claude.ai/install.ps1 | iex   (or: npm install -g @anthropic-ai/claude-code)",
+        "claude" => " Install Claude Code: curl -fsSL https://claude.ai/install.sh | bash   (or: npm install -g @anthropic-ai/claude-code)",
         "opencode" => " Install OpenCode: npm install -g opencode-ai",
         "aider" => " Install Aider: python -m pip install aider-install && aider-install",
         _ => "",
@@ -373,7 +415,8 @@ async fn real_main() -> Result<ExitCode> {
         "claude" => {
             let c = load()?;
             credits_low_warning(&c).await;
-            let env = agent_env(&c, chosen_model(&rest).as_deref());
+            let available = available_models(&c).await;
+            let env = if available.is_empty() { agent_env(&c, chosen_model(&rest).as_deref()) } else { agent_env_with(&c, chosen_model(&rest).as_deref(), &tiers(&available)) };
             return run_with("claude", &rest, &env);
         }
         "opencode" => {
@@ -434,6 +477,16 @@ mod tests {
         assert_eq!(e["OPENAI_BASE_URL"], "https://api.orvyn.cash/v1");
         assert_eq!(e["OPENAI_API_KEY"], "orv_sk_test");
         assert_eq!(agent_env(&cfg(), Some(OPUS))["ANTHROPIC_MODEL"], OPUS);
+    }
+
+    #[test]
+    fn tiers_fall_back_to_available_models() {
+        let a = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert_eq!(tiers(&a(&[OPUS, SONNET, HAIKU])), [OPUS, SONNET, HAIKU].map(String::from));
+        // Opus hidden: the Opus tier uses Sonnet.
+        assert_eq!(tiers(&a(&[SONNET, HAIKU, "x/y"])), [SONNET, SONNET, HAIKU].map(String::from));
+        // No Claude at all: the first model Orvyn AI serves.
+        assert_eq!(tiers(&a(&["x/y", "z/w"])), ["x/y", "x/y", "x/y"].map(String::from));
     }
 
     #[test]

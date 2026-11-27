@@ -22,16 +22,21 @@ struct Mock {
 async fn models() -> impl IntoResponse {
     Json(json!({ "data": [
         { "id": "anthropic/claude-sonnet-5.5", "name": "Anthropic: Claude Sonnet 5.5", "context_length": 1000000, "pricing": { "prompt": "0.000002", "completion": "0.00001" }, "supported_parameters": ["tools"] },
+        { "id": "qwen/qwen4-max", "name": "Qwen: Qwen4 Max", "context_length": 256000, "pricing": { "prompt": "0.000001", "completion": "0.000004" } },
+        { "id": "z-ai/glm-5.3", "name": "Z.ai: GLM 5.3", "context_length": 200000, "pricing": { "prompt": "0.000001", "completion": "0.000003" } },
     ] }))
 }
 
 async fn messages(State(m): State<Mock>, headers: axum::http::HeaderMap, Json(body): Json<Value>) -> impl IntoResponse {
     let beta = headers.get("anthropic-beta").and_then(|v| v.to_str().ok()).map(String::from);
     m.requests.lock().unwrap().push((body.clone(), beta));
+    if body["model"] == "qwen/qwen4-max" {
+        return (axum::http::StatusCode::BAD_REQUEST, Json(json!({ "type": "error", "error": { "type": "invalid_request_error", "message": "0 endpoints out of 1 requested are available matching your guardrail restrictions and data policy" } }))).into_response();
+    }
     let usage = json!({ "input_tokens": 80, "cache_read_input_tokens": 20, "output_tokens": 50, "cost": 0.0007, "cost_details": { "upstream": 0.0007 }, "is_byok": false });
     if body["stream"] == true {
         let events = [
-            ("message_start", json!({ "type": "message_start", "provider": "Anthropic", "message": { "id": "msg_1", "role": "assistant", "content": [], "usage": { "input_tokens": 80, "cache_read_input_tokens": 20, "output_tokens": 1 } } })),
+            ("message_start", json!({ "type": "message_start", "provider": "Anthropic", "message": { "provider": "Claude Platform on AWS", "id": "msg_1", "role": "assistant", "content": [], "usage": { "input_tokens": 80, "cache_read_input_tokens": 20, "output_tokens": 1 } } })),
             ("content_block_start", json!({ "type": "content_block_start", "index": 0, "content_block": { "type": "text", "text": "" } })),
             ("content_block_delta", json!({ "type": "content_block_delta", "index": 0, "delta": { "type": "text_delta", "text": "Hel" } })),
             ("content_block_delta", json!({ "type": "content_block_delta", "index": 0, "delta": { "type": "text_delta", "text": "lo!" } })),
@@ -99,6 +104,24 @@ async fn vyness_keys_and_messages() {
     assert_eq!(credits::balance(ME).await.unwrap(), 1_000_000 - 2 * 840);
     let spent: i64 = sqlx::query_scalar("select coalesce(sum(micro_usd), 0)::bigint from credit_ledger where account_id = $1 and source = 'vyness'").bind(ME).fetch_one(db).await.unwrap();
     assert_eq!(spent, -2 * 840);
+
+    // A model blocked on Orvyn's upstream account: a clear message, and it's hidden everywhere.
+    let listed = |v: &Value, id: &str| v["data"].as_array().unwrap().iter().any(|m| m["id"] == id);
+    assert!(listed(&inference::openai_models().await.unwrap(), "qwen/qwen4-max"));
+    let blocked = json!({ "model": "qwen/qwen4-max", "max_tokens": 10, "messages": [{ "role": "user", "content": "hi" }] });
+    let e = inference::messages(ME, "vyness", blocked.clone(), None, None).await.unwrap_err();
+    assert_eq!(e.kind, Kind::Invalid);
+    assert!(e.message.contains("isn't available on Orvyn AI") && !e.message.contains("guardrail"), "{}", e.message);
+    assert!(!listed(&inference::openai_models().await.unwrap(), "qwen/qwen4-max"));
+    assert!(inference::models_view().await.unwrap()["models"].as_array().unwrap().iter().all(|m| m["id"] != "qwen/qwen4-max"));
+    let before = mock.requests.lock().unwrap().len();
+    assert_eq!(inference::messages(ME, "vyness", blocked, None, None).await.unwrap_err().kind, Kind::Invalid);
+    assert_eq!(mock.requests.lock().unwrap().len(), before, "a hidden model doesn't go upstream again");
+    // And by hand: ORVYN_AI_HIDDEN_MODELS.
+    unsafe { std::env::set_var("ORVYN_AI_HIDDEN_MODELS", "z-ai/glm-5.3") };
+    assert!(!listed(&inference::openai_models().await.unwrap(), "z-ai/glm-5.3"));
+    unsafe { std::env::remove_var("ORVYN_AI_HIDDEN_MODELS") };
+    assert!(listed(&inference::openai_models().await.unwrap(), "z-ai/glm-5.3"));
 
     // Models Orvyn AI doesn't serve are refused.
     let bad = json!({ "model": "someone/else", "max_tokens": 10, "messages": [{ "role": "user", "content": "hi" }] });

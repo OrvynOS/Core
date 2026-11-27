@@ -79,6 +79,46 @@ pub struct ModelInfo {
 
 static PRICES: LazyLock<Mutex<Option<(Instant, HashMap<String, ModelInfo>)>>> = LazyLock::new(|| Mutex::new(None));
 
+/// Models the upstream refused for Orvyn's account (blocked there, or no endpoint allowed): hidden
+/// everywhere (Chat, Vyn, Vyness, the API) for a while, then tried again.
+static REFUSED: LazyLock<Mutex<HashMap<String, Instant>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+const REFUSED_FOR: Duration = Duration::from_secs(6 * 3600);
+
+/// Models hidden by hand: ORVYN_AI_HIDDEN_MODELS, comma-separated ids.
+fn hidden_by_env() -> Vec<String> {
+    std::env::var("ORVYN_AI_HIDDEN_MODELS").unwrap_or_default().split(',').map(|m| m.trim().to_string()).filter(|m| !m.is_empty()).collect()
+}
+
+/// Whether a model is hidden right now (refused recently, or hidden by hand).
+pub fn model_hidden(id: &str) -> bool {
+    if hidden_by_env().iter().any(|m| m == id) {
+        return true;
+    }
+    let mut r = REFUSED.lock().unwrap();
+    match r.get(id) {
+        Some(at) if at.elapsed() < REFUSED_FOR => true,
+        Some(_) => {
+            r.remove(id);
+            false
+        }
+        None => false,
+    }
+}
+
+fn mark_refused(id: &str) {
+    eprintln!("[inference] hiding {id}: the upstream refused it for Orvyn's account");
+    REFUSED.lock().unwrap().insert(id.to_string(), Instant::now());
+}
+
+/// Whether an upstream error says the model itself isn't available to Orvyn's account (blocked,
+/// or no endpoint its settings allow), rather than something about this request.
+fn refuses_model(status: u16, message: &str) -> bool {
+    let m = message.to_lowercase();
+    status == 404
+        || ((status == 400 || status == 403)
+            && ["no endpoints", "endpoints out of", "endpoints found", "not allowed", "guardrail", "data policy", "blocked", "is not a valid model", "model not found", "not available for"].iter().any(|k| m.contains(k)))
+}
+
 fn parse_price(v: &Value) -> f64 {
     v.as_str().and_then(|s| s.parse().ok()).or_else(|| v.as_f64()).unwrap_or(0.0).max(0.0)
 }
@@ -116,6 +156,12 @@ async fn fetch_catalog() -> Result<HashMap<String, ModelInfo>> {
 /// The curated models with their upstream prices (cached for an hour; a stale list is kept if a
 /// refresh fails).
 pub async fn catalog() -> Result<HashMap<String, ModelInfo>> {
+    let mut all = full_catalog().await?;
+    all.retain(|id, _| !model_hidden(id));
+    Ok(all)
+}
+
+async fn full_catalog() -> Result<HashMap<String, ModelInfo>> {
     if let Some((at, m)) = PRICES.lock().unwrap().as_ref() {
         if at.elapsed() < Duration::from_secs(3600) {
             return Ok(m.clone());
@@ -194,9 +240,14 @@ fn clean_message(m: &str) -> String {
     m.replace("OpenRouter", "the model host").replace("openrouter.ai", "the model host").replace("openrouter", "the model host")
 }
 
-fn upstream_error(status: u16, body: &str) -> Error {
+fn upstream_error(status: u16, body: &str, model: &str) -> Error {
     let v: Value = serde_json::from_str(body).unwrap_or(Value::Null);
-    let msg = v["error"]["message"].as_str().map(clean_message).unwrap_or_default();
+    let raw = v["error"]["message"].as_str().unwrap_or_default();
+    if refuses_model(status, raw) {
+        mark_refused(model);
+        return Error::invalid(format!("{model} isn't available on Orvyn AI right now. Pick another model."));
+    }
+    let msg = clean_message(raw);
     match status {
         400 | 404 | 413 | 422 => Error::invalid(if msg.is_empty() { "The model couldn't take that request.".into() } else { format!("The model couldn't take that request: {msg}") }),
         429 => Error::rate_limited("The model is busy. Try again in a moment, or pick another model."),
@@ -307,7 +358,7 @@ pub async fn complete(account: &str, source: &str, body: Value, on_chunk: Option
     let status = res.status().as_u16();
     if !(200..300).contains(&status) {
         let text = res.text().await.unwrap_or_default();
-        return Err(upstream_error(status, &text));
+        return Err(upstream_error(status, &text, &model));
     }
 
     let mut usage = Usage { model: model.clone(), ..Default::default() };
@@ -391,9 +442,14 @@ fn scrub_messages_usage(v: &mut Value) {
     };
     scrub(v.get_mut("usage"));
     scrub(v.get_mut("message").and_then(|m| m.get_mut("usage")));
+    // Streams carry the message (with the upstream's routing) inside message_start.
     if let Some(o) = v.as_object_mut() {
         o.remove("provider");
         o.remove("openrouter_metadata");
+        if let Some(m) = o.get_mut("message").and_then(Value::as_object_mut) {
+            m.remove("provider");
+            m.remove("openrouter_metadata");
+        }
     }
 }
 
@@ -468,7 +524,7 @@ pub async fn messages(account: &str, source: &str, body: Value, beta: Option<&st
     let status = res.status().as_u16();
     if !(200..300).contains(&status) {
         let text = res.text().await.unwrap_or_default();
-        return Err(upstream_error(status, &text));
+        return Err(upstream_error(status, &text, &model));
     }
 
     let mut usage = Usage { model: model.clone(), ..Default::default() };
