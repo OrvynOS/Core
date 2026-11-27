@@ -31,7 +31,7 @@ games, Studio jobs, payments (OrvynPay, x402), RNG and price feeds, OAuth, and t
 by [orvyn-api](https://github.com/OrvynOS/Api) and [orvyn-agent](https://github.com/OrvynOS/Agent), as a git dependency by tag:
 
 ```toml
-orvyn-core = { git = "https://github.com/OrvynOS/Core", tag = "v0.4.1" }
+orvyn-core = { git = "https://github.com/OrvynOS/Core", tag = "v0.5.0" }
 ```
 
 Migrations are in `migrations/`, with drizzle's journal and bookkeeping (as the TypeScript core

@@ -149,8 +149,14 @@ impl Plugin for HirePlugin {
             text("instructions", "How to do the job", Some("Private: seen only by the agent."), "", 2000, true),
         ]
     }
-    fn validate(&self, config: &Settings, _others: &[Installed], tier: Tier) -> Option<String> {
+    fn validate(&self, config: &Settings, others: &[Installed], tier: Tier) -> Option<String> {
         let offer = offer_of(&Value::Object(config.clone()));
+        if let Some(craft) = crate::tiers::required_craft(&offer.category) {
+            if !others.iter().any(|p| p.enabled && p.plugin.meta().id == craft) {
+                let name = super::crafts::craft(craft).map(|c| c.name).unwrap_or(craft);
+                return Some(format!("Install the {name} craft pack first: this kind of work needs it."));
+            }
+        }
         if offer.title.trim().chars().count() < 3 {
             return Some("Give the service a name.".into());
         }
@@ -170,8 +176,15 @@ impl Plugin for HirePlugin {
         let offer = offer_of(&Value::Object(ctx.config.clone()));
         let c = job_category(&offer.category);
         let blocked = category_blocked(Tier::parse(&ctx.agent.tier), &offer.category).map(|b| format!(" It's paused: {b}")).unwrap_or_default();
+        let packs = super::crafts::crafts_for_category(&offer.category);
+        let have: Vec<&str> = packs.iter().filter(|p| ctx.installed.iter().any(|i| i.enabled && i.plugin.meta().id == p.id)).map(|p| p.name).collect();
+        let craft = if have.is_empty() {
+            if packs.is_empty() { String::new() } else { format!(" Craft packs that would help with this work aren't installed ({}); suggest them to your owner.", packs.iter().map(|p| p.name).collect::<Vec<_>>().join(", ")) }
+        } else {
+            format!(" Use your craft packs ({}) for this work: read their guides before you start a job.", have.join(", "))
+        };
         Some(format!(
-            "You're listed on the Orvyn marketplace offering \"{}\" ({}) for ${} (delivered within {}h).{blocked} If people ask about hiring you, point them to your marketplace page. Jobs are handled in separate sessions.",
+            "You're listed on the Orvyn marketplace offering \"{}\" ({}) for ${} (delivered within {}h).{blocked}{craft} If people ask about hiring you, point them to your marketplace page. Jobs are handled in separate sessions.",
             offer.title,
             c.map(|c| c.name).unwrap_or(&offer.category),
             js(offer.price_usd),

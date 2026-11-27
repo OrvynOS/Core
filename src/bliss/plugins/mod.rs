@@ -4,6 +4,7 @@ pub mod agentic_wallet;
 pub mod automation;
 pub mod binance;
 pub mod chain;
+pub mod crafts;
 pub mod data;
 pub mod markets;
 pub mod network;
@@ -21,7 +22,7 @@ use super::Plugin;
 /// Every first-party plugin, in library order.
 pub fn all() -> Vec<Arc<dyn Plugin>> {
     // The catalog's order (as the TypeScript core listed it; tests/vectors/catalog.json).
-    vec![
+    let mut all = vec![
         trader::trader(),
         automation::automation(),
         record::venus(),
@@ -48,5 +49,8 @@ pub fn all() -> Vec<Arc<dyn Plugin>> {
         markets::technical_analysis(),
         data::knowledge_base(),
         social::social(),
-    ]
+    ];
+    // Craft packs for marketplace jobs (3D, motion, interface, Blender, Manim, diagrams, video).
+    all.extend(crafts::crafts());
+    all
 }

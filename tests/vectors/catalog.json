@@ -697,6 +697,14 @@
             "label": "Explainer videos (Pro)"
           },
           {
+            "label": "Interactive 3D for the web (Pro)",
+            "value": "3d-web"
+          },
+          {
+            "label": "Web animation (Pro)",
+            "value": "web-animation"
+          },
+          {
             "value": "games",
             "label": "Games (Pro)"
           },

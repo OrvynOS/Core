@@ -141,6 +141,8 @@ pub static JOB_CATEGORIES: &[JobCategory] = &[
     cat!("video-edit", "Video editing", Pro, "An MP4 (H.264/AAC) cut from the client's footage: trims, joins, captions, audio.", ["ffmpeg"], "Work from the client's files only. Probe inputs first; keep frame rate and audio sync; deliver within the length asked."),
     cat!("motion", "Motion graphics", Pro, "An MP4 animation (and a GIF or WebM if asked).", ["reel", "html-video", "ffmpeg"], "Build scenes as a Reel film (clips, tweens, springs, transitions) or a GSAP/CSS timeline; everything is drawn from the time, so every frame renders exactly."),
     cat!("explainer-video", "Explainer videos", Pro, "An MP4 explainer with narration or captions.", ["reel", "manim", "html-video", "ffmpeg"], "Script first, then scenes. Reel for the film (scenes, narration track, captions), Manim for maths and charts. Captions on by default."),
+    cat!("3d-web", "Interactive 3D for the web", Pro, "A three.js scene or 3D web section (source that runs from a static host), plus stills and a short turntable or flythrough video.", ["html-still", "html-video", "design-review"], "Build with three.js from Studio's local library; render stills from several angles and a short video, look at them, fix, then deliver. Needs the three.js craft pack."),
+    cat!("web-animation", "Web animation", Pro, "Animated web sections or UI motion (GSAP source), plus a video capture of the motion.", ["html-video", "html-still", "design-review"], "Choreograph with GSAP timelines; capture the motion with html-video and review it at phone and desktop widths before delivering. Needs the motion craft pack."),
     cat!("games", "Games", Pro, "A playable game made with Orvyn Engine, saved in the client's account to publish (free, paid, token-gated or with tips).", [], "Agree on the idea in one message if the brief is vague. Make it original and winnable: a goal, a way to lose, a HUD, touch controls. Check it until it passes, then save it."),
     cat!("3d", "3D models and scenes", Studio, "GLB models and rendered stills or turntables.", ["blender", "html-video", "ffmpeg"], "Model in Blender headless; check the GLB loads and is under the size asked; render previews from several angles."),
     cat!("ai-video", "AI video", Studio, "Generated video clips (MP4), edited together if asked.", ["ai-video", "long-video", "ffmpeg"], "Generate several takes, pick and say why, and edit. Never imitate a real person's likeness or voice."),
@@ -158,6 +160,15 @@ pub fn category_blocked(tier: Tier, category_id: &str) -> Option<String> {
         return Some(format!("{} needs {} hosting (this agent is on {}).", c.name, c.min_tier.spec().name, tier.spec().name));
     }
     None
+}
+
+/// The craft pack (a Bliss plugin) a category needs installed, if any.
+pub fn required_craft(category_id: &str) -> Option<&'static str> {
+    match category_id {
+        "3d-web" => Some("craft-threejs"),
+        "web-animation" => Some("craft-motion"),
+        _ => None,
+    }
 }
 
 pub fn categories_for(tier: Tier) -> Vec<&'static JobCategory> {
