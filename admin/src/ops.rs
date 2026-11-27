@@ -81,6 +81,30 @@ fn write_private(path: &Path, bytes: &[u8]) -> Result<()> {
 /// Pause an agent on Orvyn's side (its service is suspended and stays suspended: no jobs,
 /// autopilot, chat, billing or on-chain actions), or release the pause (the next billing pass
 /// resumes it as usual).
+/// Add Orvyn credits to an account, found by its sign-in email or its wallet address. Prints the
+/// account and the new balance, nothing else.
+pub async fn grant_credits(who: Option<&str>, usd: Option<&str>) -> Result<()> {
+    let (Some(who), Some(usd)) = (who, usd) else { bail!("usage: orvyn-admin grant-credits <email | 0x account> <usd>") };
+    let usd: f64 = usd.parse().map_err(|_| anyhow::anyhow!("<usd> must be a number"))?;
+    if !(usd > 0.0 && usd <= 1000.0) {
+        bail!("grant between $0 and $1000");
+    }
+    connect()?;
+    let account: String = if who.starts_with("0x") {
+        who.to_lowercase()
+    } else {
+        let found: Vec<String> = sqlx::query_scalar("select account_id from users where lower(email) = lower($1)").bind(who.trim()).fetch_all(db()).await?;
+        match found.as_slice() {
+            [one] => one.clone(),
+            [] => bail!("no Orvyn account signs in with {who} (they need to sign in once first)"),
+            _ => bail!("{} accounts use {who}; grant by wallet address instead", found.len()),
+        }
+    };
+    let balance = orvyn_core::credits::adjust(&account, usd).await.map_err(core_err)?;
+    println!("granted ${usd:.2} to {account}; balance now ${:.2}", balance as f64 / 1_000_000.0);
+    Ok(())
+}
+
 pub async fn hold(r: Option<&str>, reason: Option<&str>) -> Result<()> {
     let (Some(r), Some(reason)) = (r, reason) else { bail!("usage: orvyn-admin hold <agent id | handle> \"<reason>\" | --release") };
     connect()?;

@@ -6,6 +6,7 @@
 //!   orvyn-admin hold <agent id | handle> --release       release that pause
 //!   orvyn-admin wallet-check <agent id | handle> | --new can an agent's wallet sign?
 //!   orvyn-admin privy-policy [--print]                   create the Privy wallet policies
+//!   orvyn-admin grant-credits <email | 0x account> <usd>  add Orvyn credits (logged as an adjustment)
 //!   orvyn-admin preview-db [port]                        a throwaway local database with demo agents
 //!   orvyn-admin new-migration <name>                     add an empty migration to crates/core
 //!   orvyn-admin fixture orvynpay [out-dir]               contracts/test/fixtures/deposit.json
@@ -21,6 +22,7 @@ const USAGE: &str = "orvyn-admin api-client <client-id> [--execute]
 orvyn-admin hold <agent id | handle> \"<reason>\" | --release
 orvyn-admin wallet-check <agent id | handle> | --new
 orvyn-admin privy-policy [--print]
+orvyn-admin grant-credits <email | 0x account> <usd>
 orvyn-admin preview-db [port]
 orvyn-admin new-migration <name>
 orvyn-admin fixture orvynpay|rng [out-dir]";
@@ -44,6 +46,7 @@ async fn run() -> Result<()> {
         Some("hold") => ops::hold(arg(1), arg(2)).await,
         Some("wallet-check") => ops::wallet_check(arg(1)).await,
         Some("privy-policy") => ops::privy_policy(args.iter().any(|a| a == "--print")).await,
+        Some("grant-credits") => ops::grant_credits(arg(1), arg(2)).await,
         Some("preview-db") => preview::run(arg(1).and_then(|p| p.parse().ok()).unwrap_or(5433)).await,
         Some("new-migration") => ops::new_migration(arg(1)),
         Some("fixture") => match arg(1) {

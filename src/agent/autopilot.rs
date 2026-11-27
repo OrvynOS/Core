@@ -24,7 +24,7 @@ pub async fn run_autopilot_session(agent: Arc<Agent>) -> Result<Option<String>> 
             &cfg,
             Request {
                 system: autopilot_system_prompt(&agent, &installed, &knowledge, &compose_mandates(&agent, &installed)),
-                messages: vec![user_message(&format!("Autopilot session at {now}. Review your treasury and markets, act if warranted, then summarize."))],
+                messages: vec![user_message(&format!("Copilot session at {now}. Review your treasury and markets, act if warranted, then summarize."))],
                 tools: &tools,
                 max_steps: 20,
                 max_output_tokens: 16000,
@@ -36,7 +36,7 @@ pub async fn run_autopilot_session(agent: Arc<Agent>) -> Result<Option<String>> 
     .await;
     match r {
         Ok(out) if out.finish_reason == "content-filter" => {
-            log_agent(&agent.id, AgentLogKind::Error, "Autopilot session declined by the model.").await?;
+            log_agent(&agent.id, AgentLogKind::Error, "Copilot session declined by the model.").await?;
             Ok(None)
         }
         Ok(out) => {
@@ -48,7 +48,7 @@ pub async fn run_autopilot_session(agent: Arc<Agent>) -> Result<Option<String>> 
         }
         Err(e) => {
             // Surfaced in the activity log so the creator sees e.g. a revoked key.
-            log_agent(&agent.id, AgentLogKind::Error, &format!("Autopilot session failed: {}", describe_ai_error(&e))).await?;
+            log_agent(&agent.id, AgentLogKind::Error, &format!("Copilot session failed: {}", describe_ai_error(&e))).await?;
             Ok(None)
         }
     }

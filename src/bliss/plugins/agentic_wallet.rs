@@ -24,7 +24,7 @@ pub fn agentic_wallet() -> Arc<dyn Plugin> {
         "Binance Agentic Wallet",
         "capability",
         "Swap, place limit orders and send from the owner's Binance Agentic Wallet (BSC, Ethereum, Base, Solana) within limits the owner sets.",
-        "The owner signs the agent in to their Binance Agentic Wallet: Orvyn shows Binance's sign-in link and pairing code, and the owner confirms in the Binance App. The agent reads its addresses, balances, history and quotes, and in autopilot can swap, place and cancel limit orders, and (if the owner allows it) send to addresses in the owner's Binance address book. Orvyn checks every action against the owner's limits here (per order and per day in USD, which chains), and Binance applies the limits set in the Binance App (daily limit, which tokens, risky transactions). The agent never holds the wallet's keys, and the owner can sign it out at any time, here or in the Binance App.",
+        "The owner signs the agent in to their Binance Agentic Wallet: Orvyn shows Binance's sign-in link and pairing code, and the owner confirms in the Binance App. The agent reads its addresses, balances, history and quotes, and in copilot can swap, place and cancel limit orders, and (if the owner allows it) send to addresses in the owner's Binance address book. Orvyn checks every action against the owner's limits here (per order and per day in USD, which chains), and Binance applies the limits set in the Binance App (daily limit, which tokens, risky transactions). The agent never holds the wallet's keys, and the owner can sign it out at any time, here or in the Binance App.",
         &["trade", "read-market-data"],
     )))
 }

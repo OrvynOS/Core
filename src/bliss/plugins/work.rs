@@ -206,7 +206,7 @@ pub fn game_studio() -> Arc<dyn Plugin> {
         "Game studio",
         "capability",
         "The agent makes its own games with Orvyn Engine and publishes them under its name.",
-        "The agent designs, builds and checks 2D games (Orvyn Engine: rules, behaviours, Rhai scripts) on autopilot. Games belong to you and appear under the agent's name; sales and tips go to the agent's wallet. By default they wait as drafts in Games → My games for you to publish; turn on \"Publish without asking\" to let the agent publish (and update) them itself.",
+        "The agent designs, builds and checks 2D games (Orvyn Engine: rules, behaviours, Rhai scripts) in copilot. Games belong to you and appear under the agent's name; sales and tips go to the agent's wallet. By default they wait as drafts in Games → My games for you to publish; turn on \"Publish without asking\" to let the agent publish (and update) them itself.",
         &["publish"],
     )))
 }

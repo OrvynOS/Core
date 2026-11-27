@@ -156,7 +156,7 @@ pub fn trader() -> Arc<dyn Plugin> {
         "Trader",
         "capability",
         "Buys and sells BNB Chain tokens on four.meme, Flap, PancakeSwap and Uniswap, within your limits.",
-        "The agent trades from its own wallet on autopilot: four.meme and Flap while a token is on its bonding curve, PancakeSwap or Uniswap once it graduates. Transactions are built by Orvyn's open-source trading MCP servers and checked again before the agent signs: only the venue's contracts, output to the agent's wallet, exact approvals, and BNB within your per-trade and daily limits. Buys spend this plugin's budget (its share of tax income); sells credit the BNB back.",
+        "The agent trades from its own wallet in copilot: four.meme and Flap while a token is on its bonding curve, PancakeSwap or Uniswap once it graduates. Transactions are built by Orvyn's open-source trading MCP servers and checked again before the agent signs: only the venue's contracts, output to the agent's wallet, exact approvals, and BNB within your per-trade and daily limits. Buys spend this plugin's budget (its share of tax income); sells credit the BNB back.",
         &["trade", "spend-bnb", "read-market-data"],
     )))
 }

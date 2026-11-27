@@ -160,3 +160,47 @@ async fn code_refresh_device_and_revocation() {
     assert_eq!(subjects.len(), 2);
     assert_eq!(subjects[1]["detail"], "nova");
 }
+
+/// A developer manages their app: users and last use are shown; they rename it, change its
+/// redirect URIs and scopes (never Orvyn-only ones); only they can; deleting it signs everyone out.
+#[tokio::test]
+async fn developers_manage_their_apps() {
+    v();
+    let _db = support::shared_db().await;
+    let dev = "0xdev";
+    let person = "0x3333333333333333333333333333333333333333";
+    let input: oauth::ClientInput = serde_json::from_value(json!({ "name": "Quill", "type": "confidential", "redirectUris": ["https://quill.example/cb"], "scopes": ["openid", "profile"] })).unwrap();
+    let (client, secret) = oauth::register_client(dev, &input, false, None).await.unwrap();
+    let (id, secret) = (client["id"].as_str().unwrap().to_string(), secret.unwrap());
+
+    // Someone signs in: one user, last used now.
+    let (verifier, challenge) = pkce();
+    let params = form(&[("client_id", &id), ("redirect_uri", "https://quill.example/cb"), ("response_type", "code"), ("code_challenge", &challenge), ("code_challenge_method", "S256"), ("scope", "openid profile offline_access"), ("state", "s")]);
+    let req = oauth::parse_authorize_request(&params).await.unwrap();
+    let back = oauth::approve_authorization(person, &req, &format!("user:{person}")).await.unwrap();
+    let exchange = form(&[("grant_type", "authorization_code"), ("code", &query(&back)["code"]), ("redirect_uri", "https://quill.example/cb"), ("code_verifier", &verifier)]);
+    let tokens = oauth::token_request(&exchange, Some(&id), Some(&secret)).await.unwrap();
+    let refresh = tokens["refresh_token"].as_str().unwrap().to_string();
+    let mine = oauth::clients_of(dev).await.unwrap();
+    assert_eq!((mine.len(), mine[0]["users"].as_i64()), (1, Some(1)));
+    assert!(mine[0]["lastUsedAt"].is_string());
+
+    // Edits: rename, new redirect URIs, wider scopes and branding; bad values are refused.
+    let u = |v: serde_json::Value| serde_json::from_value::<oauth::ClientUpdate>(v).unwrap();
+    let c = oauth::update_client(dev, &id, &u(json!({ "name": "Quill Research", "redirectUris": ["https://quill.example/cb", "http://localhost:5173/cb"], "scopes": ["openid", "profile", "agent", "social"], "homepage": "https://quill.example" }))).await.unwrap();
+    assert_eq!((c["name"].as_str(), c["redirectUris"].as_array().unwrap().len(), c["homepage"].as_str()), (Some("Quill Research"), 2, Some("https://quill.example")));
+    assert_eq!(oauth::update_client(dev, &id, &u(json!({ "scopes": ["openid", "vyn"] }))).await.unwrap_err().code, "invalid_client_metadata", "Orvyn-only scope");
+    assert_eq!(oauth::update_client(dev, &id, &u(json!({ "redirectUris": ["javascript:alert(1)"] }))).await.unwrap_err().code, "invalid_redirect_uri");
+    assert_eq!(oauth::update_client(dev, &id, &u(json!({ "name": "  " }))).await.unwrap_err().code, "invalid_client_metadata");
+    let c = oauth::update_client(dev, &id, &u(json!({ "homepage": null }))).await.unwrap();
+    assert!(c["homepage"].is_null(), "null clears it");
+    assert_eq!(oauth::update_client(person, &id, &u(json!({ "name": "Mine now" }))).await.unwrap_err().status, 404, "only its developer");
+    assert_eq!(oauth::delete_client(person, &id).await.unwrap_err().status, 404);
+
+    // Delete: it stops working and everyone is signed out.
+    oauth::delete_client(dev, &id).await.unwrap();
+    assert!(oauth::clients_of(dev).await.unwrap().is_empty());
+    assert_eq!(oauth::authenticate_client(Some(&id), Some(&secret)).await.unwrap_err().code, "invalid_client");
+    assert!(oauth::token_request(&form(&[("grant_type", "refresh_token"), ("refresh_token", &refresh)]), Some(&id), Some(&secret)).await.is_err());
+    assert_eq!(oauth::delete_client(dev, &id).await.unwrap_err().status, 404, "already gone");
+}

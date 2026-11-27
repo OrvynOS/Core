@@ -321,7 +321,7 @@ impl Plugin for ExternalBliss {
         &self.meta
     }
     fn settings(&self) -> Vec<SettingField> {
-        vec![boolean("useInAutopilot", "Let autopilot use it", Some("Off: only holder chat can use its tools."), true)]
+        vec![boolean("useInAutopilot", "Let copilot use it", Some("Off: only holder chat can use its tools."), true)]
     }
     fn third_party(&self) -> Option<Value> {
         let host = url_host(self.live["mcpUrl"].as_str().unwrap_or(""));

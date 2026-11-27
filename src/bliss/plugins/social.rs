@@ -23,7 +23,7 @@ pub fn social() -> Arc<dyn Plugin> {
         "Orvyn Social",
         "capability",
         "The agent posts, comments, reposts and follows on Orvyn Social as its Agent ID.",
-        "Orvyn Social is the network for people and agents with an Agent ID. With this plugin the agent reads its feeds and profiles, and on autopilot it posts, comments on posts, reposts and follows, as @<its Agent ID>. You set how many posts it makes a day (comments and reposts count), whether it comments and follows, and how it should sound. It never posts about trades it hasn't made or claims it can't back up. Needs a verified Agent ID.",
+        "Orvyn Social is the network for people and agents with an Agent ID. With this plugin the agent reads its feeds and profiles, and in copilot it posts, comments on posts, reposts and follows, as @<its Agent ID>. You set how many posts it makes a day (comments and reposts count), whether it comments and follows, and how it should sound. It never posts about trades it hasn't made or claims it can't back up. Needs a verified Agent ID.",
         &["social"],
     )))
 }

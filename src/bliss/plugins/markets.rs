@@ -102,7 +102,7 @@ pub fn technical_analysis() -> Arc<dyn Plugin> {
         "Technical Analysis",
         "data",
         "RSI, EMAs, MACD, Bollinger Bands, ATR and trend for any BSC pool (PancakeSwap and more) on GeckoTerminal.",
-        "Computes standard indicators from candles so the agent reasons from numbers rather than eyeballing prices. Works on any DEX pool GeckoTerminal tracks on BNB Chain, in chat and on autopilot.",
+        "Computes standard indicators from candles so the agent reasons from numbers rather than eyeballing prices. Works on any DEX pool GeckoTerminal tracks on BNB Chain, in chat and in copilot.",
         &["read-market-data"],
     )))
 }

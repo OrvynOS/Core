@@ -221,9 +221,128 @@ pub async fn register_client(owner_account_id: &str, input: &ClientInput, first_
     Ok((client_view(&client), secret))
 }
 
+/// The person's apps, newest first, each with how many people and agents use it and when it was
+/// last used (a token issued or refreshed).
 pub async fn clients_of(account_id: &str) -> OResult<Vec<Value>> {
-    let rows: Vec<OauthClient> = sqlx::query_as("select * from oauth_clients where owner_account_id = $1").bind(account_id.to_lowercase()).fetch_all(db()).await?;
-    Ok(rows.iter().map(client_view).collect())
+    let rows: Vec<OauthClient> = sqlx::query_as("select * from oauth_clients where owner_account_id = $1 and status <> 'deleted' order by created_at desc").bind(account_id.to_lowercase()).fetch_all(db()).await?;
+    let mut out = Vec::with_capacity(rows.len());
+    for c in &rows {
+        let (users, last): (i64, Option<chrono::DateTime<chrono::Utc>>) = sqlx::query_as(
+            "select (select count(*) from oauth_grants where client_id = $1 and revoked_at is null), (select max(created_at) from oauth_refresh_tokens where client_id = $1)",
+        )
+        .bind(&c.id)
+        .fetch_one(db())
+        .await?;
+        let mut v = client_view(c);
+        v["users"] = json!(users);
+        v["lastUsedAt"] = json!(last.map(|t| t.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)));
+        out.push(v);
+    }
+    Ok(out)
+}
+
+/// Changes to an app: any of name, redirect URIs, scopes, homepage and logo (null clears those two).
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientUpdate {
+    pub name: Option<String>,
+    pub redirect_uris: Option<Vec<String>>,
+    pub scopes: Option<Vec<String>>,
+    #[serde(default, deserialize_with = "some_or_null")]
+    pub homepage: Option<Option<String>>,
+    #[serde(default, deserialize_with = "some_or_null")]
+    pub logo_url: Option<Option<String>>,
+}
+
+fn some_or_null<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Option<String>>, D::Error> {
+    Ok(Some(<Option<String> as serde::Deserialize>::deserialize(d)?))
+}
+
+/// Update one of the person's apps (not Orvyn's own). Narrowing scopes doesn't touch existing
+/// sign-ins; they keep what they were granted until they sign in again.
+pub async fn update_client(account_id: &str, client_id: &str, u: &ClientUpdate) -> OResult<Value> {
+    let c: OauthClient = sqlx::query_as("select * from oauth_clients where id = $1 and owner_account_id = $2 and status <> 'deleted'")
+        .bind(client_id)
+        .bind(account_id.to_lowercase())
+        .fetch_optional(db())
+        .await?
+        .ok_or_else(|| err("invalid_client", "no such app of yours", 404))?;
+    if c.first_party {
+        return Err(err("invalid_client", "Orvyn's own apps can't be changed here", 403));
+    }
+    let name = match &u.name {
+        Some(n) if n.trim().is_empty() || n.trim().chars().count() > 60 => return Err(err("invalid_client_metadata", "the app name must be 1-60 characters", 400)),
+        Some(n) => n.trim().to_string(),
+        None => c.name.clone(),
+    };
+    let redirects = match &u.redirect_uris {
+        Some(r) => {
+            if r.is_empty() || r.len() > 10 {
+                return Err(err("invalid_client_metadata", "give 1-10 redirect URIs", 400));
+            }
+            for x in r {
+                check_redirect_uri(x)?;
+            }
+            json!(r)
+        }
+        None => c.redirect_uris.clone(),
+    };
+    let scopes = match &u.scopes {
+        Some(s) => {
+            if s.is_empty() || s.iter().any(|x| !known_scope(x)) {
+                return Err(err("invalid_client_metadata", format!("scopes must be among {}", SCOPES.iter().map(|(k, _)| *k).collect::<Vec<_>>().join(", ")), 400));
+            }
+            if s.iter().any(|x| FIRST_PARTY_SCOPES.contains(&x.as_str())) {
+                return Err(err("invalid_client_metadata", "that scope is reserved for Orvyn's own apps", 400));
+            }
+            json!(s)
+        }
+        None => c.scopes.clone(),
+    };
+    let url = |v: &Option<Option<String>>, current: &Option<String>| -> OResult<Option<String>> {
+        match v {
+            None => Ok(current.clone()),
+            Some(None) => Ok(None),
+            Some(Some(s)) if s.trim().is_empty() => Ok(None),
+            Some(Some(s)) if s.len() <= 500 && (s.starts_with("https://") || s.starts_with("http://localhost")) => Ok(Some(s.trim().to_string())),
+            Some(Some(_)) => Err(err("invalid_client_metadata", "homepage and logo must be https URLs", 400)),
+        }
+    };
+    let homepage = url(&u.homepage, &c.homepage)?;
+    let logo = url(&u.logo_url, &c.logo_url)?;
+    let updated: OauthClient = sqlx::query_as("update oauth_clients set name = $2, redirect_uris = $3, scopes = $4, homepage = $5, logo_url = $6 where id = $1 returning *")
+        .bind(client_id)
+        .bind(name)
+        .bind(redirects)
+        .bind(scopes)
+        .bind(homepage)
+        .bind(logo)
+        .fetch_one(db())
+        .await?;
+    Ok(client_view(&updated))
+}
+
+/// Delete one of the person's apps: every sign-in to it ends (grants and refresh tokens revoked,
+/// pending codes dropped) and its client id stops working.
+pub async fn delete_client(account_id: &str, client_id: &str) -> OResult<()> {
+    let first_party: Option<bool> = sqlx::query_scalar("select first_party from oauth_clients where id = $1 and owner_account_id = $2 and status <> 'deleted'")
+        .bind(client_id)
+        .bind(account_id.to_lowercase())
+        .fetch_optional(db())
+        .await?;
+    match first_party {
+        None => return Err(err("invalid_client", "no such app of yours", 404)),
+        Some(true) => return Err(err("invalid_client", "Orvyn's own apps can't be deleted here", 403)),
+        Some(false) => {}
+    }
+    let mut tx = db().begin().await?;
+    sqlx::query("update oauth_refresh_tokens set revoked_at = now() where client_id = $1 and revoked_at is null").bind(client_id).execute(&mut *tx).await?;
+    sqlx::query("update oauth_grants set revoked_at = now() where client_id = $1 and revoked_at is null").bind(client_id).execute(&mut *tx).await?;
+    sqlx::query("delete from oauth_codes where client_id = $1").bind(client_id).execute(&mut *tx).await?;
+    sqlx::query("delete from oauth_device_codes where client_id = $1").bind(client_id).execute(&mut *tx).await?;
+    sqlx::query("update oauth_clients set status = 'deleted', secret_hash = null where id = $1").bind(client_id).execute(&mut *tx).await?;
+    tx.commit().await?;
+    Ok(())
 }
 
 pub async fn rotate_secret(account_id: &str, client_id: &str) -> OResult<String> {

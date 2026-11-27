@@ -24,7 +24,7 @@ pub fn binance() -> Arc<dyn Plugin> {
         "Binance",
         "capability",
         "Trade the owner's Binance Agentic sub-account (spot, futures, margin, convert) within limits the owner sets; never withdrawals.",
-        "The owner connects a Binance Agentic sub-account (Binance's own sign-in; the owner picks what the agent may do) and funds it with what they choose. The agent reads markets, balances and positions, and in autopilot can place and cancel orders. Orvyn checks every order against the owner's limits before it reaches Binance: size per order and per day in USD, which products and symbols, and maximum leverage. Binance's agentic server never allows withdrawals, and the owner can disconnect the agent from Binance at any time.",
+        "The owner connects a Binance Agentic sub-account (Binance's own sign-in; the owner picks what the agent may do) and funds it with what they choose. The agent reads markets, balances and positions, and in copilot can place and cancel orders. Orvyn checks every order against the owner's limits before it reaches Binance: size per order and per day in USD, which products and symbols, and maximum leverage. Binance's agentic server never allows withdrawals, and the owner can disconnect the agent from Binance at any time.",
         &["trade", "read-market-data"],
     )))
 }
