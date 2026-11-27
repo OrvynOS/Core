@@ -148,6 +148,13 @@
       "when": 1796083200000,
       "tag": "0020_vyn_default_ai",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1796083200001,
+      "tag": "0021_inference_default_model",
+      "breakpoints": true
     }
   ]
 }

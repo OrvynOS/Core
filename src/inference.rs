@@ -21,7 +21,8 @@ use crate::db::{db, ChatTurnMessage, ChatThread};
 use crate::env::env;
 use crate::error::{Error, Kind, Result};
 
-pub const DEFAULT_MODEL: &str = "anthropic/claude-sonnet-5.5";
+/// Orvyn AI's default model; each account can choose its own (`set_default_model`).
+pub const DEFAULT_MODEL: &str = "anthropic/claude-haiku-5.5";
 /// Orvyn's own model, listed as coming soon (not selectable yet).
 pub const ORVYN_MODEL: &str = "orvyn/orvyn-1";
 
@@ -209,6 +210,44 @@ pub async fn models_view() -> Result<Value> {
     Ok(json!({ "models": models, "defaultModel": DEFAULT_MODEL }))
 }
 
+/// The model an account uses when it doesn't name one: its own choice while Orvyn AI serves it,
+/// else Orvyn AI's default (or, if that's unavailable, the first model that is).
+pub async fn default_model(account: &str) -> Result<String> {
+    let cat = catalog().await?;
+    let saved: Option<String> = sqlx::query_scalar("select default_model from inference_prefs where account_id = $1").bind(account.to_lowercase()).fetch_optional(crate::db::db()).await?;
+    if let Some(m) = saved.filter(|m| cat.contains_key(m)) {
+        return Ok(m);
+    }
+    if cat.contains_key(DEFAULT_MODEL) {
+        return Ok(DEFAULT_MODEL.to_string());
+    }
+    Ok(MODELS.iter().find(|m| cat.contains_key(**m)).map(|m| m.to_string()).unwrap_or_else(|| DEFAULT_MODEL.to_string()))
+}
+
+/// Set an account's default model (one Orvyn AI serves). `None` goes back to Orvyn AI's default.
+pub async fn set_default_model(account: &str, model: Option<&str>) -> Result<String> {
+    let account = account.to_lowercase();
+    match model.map(str::trim).filter(|m| !m.is_empty()) {
+        None => {
+            sqlx::query("delete from inference_prefs where account_id = $1").bind(&account).execute(crate::db::db()).await?;
+        }
+        Some(m) => {
+            if m == ORVYN_MODEL {
+                return Err(Error::invalid("Orvyn Model is coming soon. Pick another model for now."));
+            }
+            if !catalog().await?.contains_key(m) {
+                return Err(Error::invalid(format!("Orvyn AI doesn't serve {m} right now. GET /v1/models lists the models.")));
+            }
+            sqlx::query("insert into inference_prefs (account_id, default_model) values ($1, $2) on conflict (account_id) do update set default_model = excluded.default_model, updated_at = now()")
+                .bind(&account)
+                .bind(m)
+                .execute(crate::db::db())
+                .await?;
+        }
+    }
+    default_model(&account).await
+}
+
 /// GET /v1/models, OpenAI's shape.
 pub async fn openai_models() -> Result<Value> {
     let cat = catalog().await?;
@@ -298,7 +337,10 @@ async fn settle(account: &str, source: &str, micro: i64, model: &str, input_toke
 pub async fn complete(account: &str, source: &str, body: Value, on_chunk: Option<&(dyn Fn(&Value) + Send + Sync)>) -> Result<(Option<Value>, Usage)> {
     let key = upstream_key()?;
     let Some(obj) = body.as_object() else { return Err(Error::invalid("The request body must be a JSON object.")) };
-    let model = obj.get("model").and_then(Value::as_str).unwrap_or(DEFAULT_MODEL).to_string();
+    let model = match obj.get("model").and_then(Value::as_str).filter(|m| !m.trim().is_empty()) {
+        Some(m) => m.to_string(),
+        None => default_model(account).await?,
+    };
     if model == ORVYN_MODEL {
         return Err(Error::invalid("Orvyn Model is coming soon. Pick another model for now."));
     }
@@ -656,7 +698,10 @@ pub async fn chat_turn(account: &str, thread_id: Option<&str>, text: &str, model
     if text.is_empty() || text.chars().count() > MAX_MESSAGE_CHARS {
         return Err(Error::invalid(format!("Write a message (up to {MAX_MESSAGE_CHARS} characters).")));
     }
-    let model = model.unwrap_or(DEFAULT_MODEL).to_string();
+    let model = match model.filter(|m| !m.trim().is_empty()) {
+        Some(m) => m.to_string(),
+        None => default_model(&account).await?,
+    };
     if model == ORVYN_MODEL {
         return Err(Error::invalid("Orvyn Model is coming soon. Pick another model for now."));
     }

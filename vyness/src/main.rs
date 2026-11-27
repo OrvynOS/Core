@@ -32,12 +32,13 @@ Usage:
   vyness aider [args...]         Start Aider on Orvyn AI
   vyness run -- <command...>     Run any command with Orvyn AI's Anthropic and OpenAI settings
   vyness env                     Print those settings as shell exports
+  vyness model [<id>|--reset]    Show or change your default model (Claude Haiku 5.5 unless you pick one)
   vyness models                  The models Orvyn AI serves
   vyness credits                 Your Orvyn credits
   vyness status                  Who is signed in on this computer
   vyness logout                  Forget the key on this computer
 
-Set --model (or VYNESS_MODEL) to choose a model, for example anthropic/claude-sonnet-5.5.";
+Agents start on your default model. Set --model (or VYNESS_MODEL) to use another for one run.";
 
 // ---------- Config ----------
 
@@ -99,6 +100,21 @@ fn tiers(available: &[String]) -> [String; 3] {
     let has = |m: &str| available.iter().any(|a| a == m);
     let pick = |order: &[&str]| order.iter().find(|m| has(m)).map(|m| m.to_string()).or_else(|| available.first().cloned()).unwrap_or_else(|| order[0].to_string());
     [pick(&[OPUS, SONNET, HAIKU]), pick(&[SONNET, OPUS, HAIKU]), pick(&[HAIKU, SONNET, OPUS])]
+}
+
+/// The account's default model (set in Orvyn Chat or with `vyness model`).
+async fn account_default(c: &Config) -> Option<String> {
+    get_json(c, "/v1/default-model").await.ok().and_then(|v| v["model"].as_str().map(String::from))
+}
+
+async fn set_default(c: &Config, model: Option<&str>) -> Result<String> {
+    let r = http()?.put(format!("{}/v1/default-model", api_root(&c.api))).bearer_auth(&c.key).json(&json!({ "model": model })).send().await?;
+    let status = r.status();
+    let v: Value = r.json().await.unwrap_or(Value::Null);
+    if !status.is_success() {
+        bail!(error_text(&v, status));
+    }
+    Ok(v["model"].as_str().unwrap_or_default().to_string())
 }
 
 async fn available_models(c: &Config) -> Vec<String> {
@@ -399,6 +415,15 @@ async fn real_main() -> Result<ExitCode> {
             let b = get_json(&c, "/v1/credits").await?;
             println!("Orvyn credits: {}\nTop up: {}", usd(&b["usd"]), b["topUp"].as_str().unwrap_or(TOP_UP));
         }
+        "model" => {
+            let c = load()?;
+            let m = match rest.first().map(String::as_str) {
+                None => account_default(&c).await.ok_or_else(|| anyhow!("Couldn't read your default model."))?,
+                Some("--reset") => set_default(&c, None).await?,
+                Some(id) => set_default(&c, Some(id)).await?,
+            };
+            println!("Default model: {m}");
+        }
         "models" => {
             let c = load()?;
             let v = get_json(&c, "/v1/models").await?;
@@ -416,13 +441,20 @@ async fn real_main() -> Result<ExitCode> {
             let c = load()?;
             credits_low_warning(&c).await;
             let available = available_models(&c).await;
-            let env = if available.is_empty() { agent_env(&c, chosen_model(&rest).as_deref()) } else { agent_env_with(&c, chosen_model(&rest).as_deref(), &tiers(&available)) };
+            let model = match chosen_model(&rest) {
+                Some(m) => Some(m),
+                None => account_default(&c).await,
+            };
+            let env = if available.is_empty() { agent_env(&c, model.as_deref()) } else { agent_env_with(&c, model.as_deref(), &tiers(&available)) };
             return run_with("claude", &rest, &env);
         }
         "opencode" => {
             let c = load()?;
             credits_low_warning(&c).await;
-            let model = chosen_model(&rest).unwrap_or_else(|| SONNET.into());
+            let model = match chosen_model(&rest) {
+                Some(m) => m,
+                None => account_default(&c).await.unwrap_or_else(|| HAIKU.into()),
+            };
             let path = config_dir()?.join("opencode.json");
             std::fs::write(&path, serde_json::to_string_pretty(&opencode_config(&model))?)?;
             let mut env = agent_env(&c, Some(&model));
@@ -432,7 +464,10 @@ async fn real_main() -> Result<ExitCode> {
         "aider" => {
             let c = load()?;
             credits_low_warning(&c).await;
-            let model = chosen_model(&rest).unwrap_or_else(|| SONNET.into());
+            let model = match chosen_model(&rest) {
+                Some(m) => m,
+                None => account_default(&c).await.unwrap_or_else(|| HAIKU.into()),
+            };
             return run_with("aider", &aider_args(&rest, &model), &agent_env(&c, Some(&model)));
         }
         "run" => {
@@ -494,7 +529,7 @@ mod tests {
         let a = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         assert_eq!(chosen_model(&a(&["--model", "x/y", "-p", "hi"])).as_deref(), Some("x/y"));
         assert_eq!(chosen_model(&a(&["--model=x/z"])).as_deref(), Some("x/z"));
-        assert_eq!(aider_args(&a(&["src/main.rs"]), SONNET), a(&["--model", "openai/anthropic/claude-sonnet-5.5", "src/main.rs"]));
+        assert_eq!(aider_args(&a(&["src/main.rs"]), HAIKU), a(&["--model", "openai/anthropic/claude-haiku-5.5", "src/main.rs"]));
         assert_eq!(aider_args(&a(&["--model", "openai/x"]), SONNET), a(&["--model", "openai/x"]));
     }
 

@@ -22,6 +22,7 @@ struct Mock {
 async fn models() -> impl IntoResponse {
     Json(json!({ "data": [
         { "id": "anthropic/claude-sonnet-5.5", "name": "Anthropic: Claude Sonnet 5.5", "context_length": 1000000, "pricing": { "prompt": "0.000002", "completion": "0.00001" }, "supported_parameters": ["tools"] },
+        { "id": "anthropic/claude-haiku-5.5", "name": "Anthropic: Claude Haiku 5.5", "context_length": 200000, "pricing": { "prompt": "0.000001", "completion": "0.000005" }, "supported_parameters": ["tools"] },
         { "id": "qwen/qwen4-max", "name": "Qwen: Qwen4 Max", "context_length": 256000, "pricing": { "prompt": "0.000001", "completion": "0.000004" } },
         { "id": "z-ai/glm-5.3", "name": "Z.ai: GLM 5.3", "context_length": 200000, "pricing": { "prompt": "0.000001", "completion": "0.000003" } },
     ] }))
@@ -122,6 +123,16 @@ async fn vyness_keys_and_messages() {
     assert!(!listed(&inference::openai_models().await.unwrap(), "z-ai/glm-5.3"));
     unsafe { std::env::remove_var("ORVYN_AI_HIDDEN_MODELS") };
     assert!(listed(&inference::openai_models().await.unwrap(), "z-ai/glm-5.3"));
+
+    // The default model: Claude Haiku 5.5, until the person picks their own.
+    assert_eq!(inference::DEFAULT_MODEL, "anthropic/claude-haiku-5.5");
+    assert_eq!(inference::default_model(ME).await.unwrap(), "anthropic/claude-haiku-5.5");
+    assert_eq!(inference::set_default_model(ME, Some("anthropic/claude-sonnet-5.5")).await.unwrap(), "anthropic/claude-sonnet-5.5");
+    assert_eq!(inference::default_model(&ME.to_uppercase().replace("0X", "0x")).await.unwrap(), "anthropic/claude-sonnet-5.5");
+    assert_eq!(inference::set_default_model(ME, Some("qwen/qwen4-max")).await.unwrap_err().kind, Kind::Invalid, "not a hidden model");
+    assert_eq!(inference::set_default_model(ME, Some(inference::ORVYN_MODEL)).await.unwrap_err().kind, Kind::Invalid);
+    assert_eq!(inference::default_model("0x00000000000000000000000000000000000000ff").await.unwrap(), "anthropic/claude-haiku-5.5", "per account");
+    assert_eq!(inference::set_default_model(ME, None).await.unwrap(), "anthropic/claude-haiku-5.5");
 
     // Models Orvyn AI doesn't serve are refused.
     let bad = json!({ "model": "someone/else", "max_tokens": 10, "messages": [{ "role": "user", "content": "hi" }] });
