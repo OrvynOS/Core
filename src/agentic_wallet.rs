@@ -401,7 +401,7 @@ pub const NATIVE: &str = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 /// Stablecoins Orvyn values at $1, by chain (lowercased EVM addresses; Solana's as is).
 const STABLECOINS: &[(&str, &str)] = &[
     ("56", "0x55d398326f99059ff775485246999027b3197955"),  // USDT
-    ("56", "0x8ac76a51cc950f9822d68b83fe1ad97b32cd580d"),  // USDC
+    ("56", "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"),  // USDC
     ("1", "0xdac17f958d2ee523a2206206994597c13d831ec7"),   // USDT
     ("1", "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"),   // USDC
     ("8453", "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"), // USDC
