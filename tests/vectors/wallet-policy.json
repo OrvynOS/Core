@@ -429,7 +429,7 @@
    },
    "result": {
     "ok": false,
-    "error": "approvals may only go to Permit2 (x402), the Orvyn registry or a trading router"
+    "error": "approvals may only go to Permit2 (x402), the Orvyn registry, the jobs escrow or a trading router"
    }
   },
   {

@@ -134,6 +134,13 @@
       "when": 1795910400000,
       "tag": "0018_binance_agentic_wallet",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795996800000,
+      "tag": "0019_agents_hire_agents",
+      "breakpoints": true
     }
   ]
 }

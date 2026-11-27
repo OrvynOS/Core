@@ -74,14 +74,14 @@ pub fn agent_policy_rules() -> Vec<Value> {
     let venus = venus_contracts();
     let erc8004 = (c.erc8004_chain == "bsc").then_some(c.erc8004_registry.as_str());
     let contracts = both(
-        [c.registry.as_deref(), Some(c.fourmeme_manager.as_str()), erc8004, Some(VAULT), c.orvyn_pay.as_deref(), c.shielded_pool.as_deref()]
+        [c.registry.as_deref(), Some(c.fourmeme_manager.as_str()), erc8004, Some(VAULT), c.orvyn_pay.as_deref(), c.orvyn_jobs.as_deref(), c.shielded_pool.as_deref()]
             .into_iter()
             .chain(trade.iter().map(|t| Some(t.as_str())))
             .chain(venus.iter().map(|v| Some(*v)))
             .chain([c.orvyn_rng.as_deref()]),
     );
     let spenders = both(
-        [Some(PERMIT2), c.registry.as_deref(), Some(VAULT), c.orvyn_pay.as_deref(), c.shielded_pool.as_deref()]
+        [Some(PERMIT2), c.registry.as_deref(), Some(VAULT), c.orvyn_pay.as_deref(), c.orvyn_jobs.as_deref(), c.shielded_pool.as_deref()]
             .into_iter()
             .chain(trade.iter().map(|t| Some(t.as_str())))
             .chain(venus.iter().map(|v| Some(*v))),

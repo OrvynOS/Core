@@ -220,7 +220,7 @@ fn operator_key() -> Result<String> {
 }
 
 /// BNB price in USD (deepest WBNB pool), to price BNB jobs from a USD offer.
-async fn bnb_usd() -> Result<f64> {
+pub(crate) async fn bnb_usd() -> Result<f64> {
     let pair = crate::data::dexscreener::best_pair("bsc", BSC.wrapped).await.ok().flatten();
     let price = pair.and_then(|p| p["priceUsd"].as_str().and_then(|s| s.parse::<f64>().ok())).unwrap_or(0.0);
     if price > 0.0 {

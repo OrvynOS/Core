@@ -23,6 +23,7 @@ fn setup() -> Value {
         ("ORVYN_PAY_CONTRACT", "0x5555555555555555555555555555555555555555"),
         ("ORVYN_SHIELDED_POOL", "0x6666666666666666666666666666666666666666"),
         ("ORVYN_RNG_CONTRACT", "0x7777777777777777777777777777777777777777"),
+        ("ORVYN_JOBS_CONTRACT", "0x8888888888888888888888888888888888888888"),
     ] {
         // SAFETY: set once, before the policy config is read, in this test binary only.
         unsafe { std::env::set_var(k, val) };
@@ -223,4 +224,42 @@ fn grant_amounts_and_text() {
     assert!(check_grant_text(&msg("2026-11-23T11:55:00.000Z"), "a1", now).is_ok());
     assert!(check_grant_text(&msg("2026-11-23T11:45:00.000Z"), "a1", now).unwrap_err().message.contains("expired"));
     assert!(check_grant_text(&msg("2026-11-23T11:55:00.000Z"), "a2", now).unwrap_err().message.contains("another agent"));
+}
+
+/// Agents hiring agents: the jobs escrow takes `fund` (never paying itself, the BNB attached
+/// matching, counted against the payment caps), `approve`/`dispute`/`reclaim`, and exact
+/// USDT/USDC approvals; nothing else.
+#[tokio::test]
+async fn agents_can_pay_the_jobs_escrow() {
+    use alloy::sol;
+    use alloy::sol_types::SolCall;
+    sol! {
+        function fund(string jobId, string agentId, address payee, address token, uint256 amount, uint64 deadline) payable;
+        function approve(string jobId);
+        function release(string jobId);
+        function approve(address spender, uint256 amount) returns (bool);
+    }
+    let v = setup();
+    let agent = agent_of(&v);
+    let escrow: Address = "0x8888888888888888888888888888888888888888".parse().unwrap();
+    let usdt: Address = "0x55d398326f99059fF775485246999027B3197955".parse().unwrap();
+    let other: Address = "0x00000000000000000000000000000000000000aa".parse().unwrap();
+    let me: Address = agent.address.parse().unwrap();
+    let tx = |to: Address, data: Vec<u8>, value: U256| TxRequest { chain_id: 56, to: Some(to), value, data: data.into(), ..Default::default() };
+    let wei = U256::from(10u64).pow(U256::from(18));
+    let fund = |payee: Address, token: Address, amount: U256| fundCall { jobId: "h1".into(), agentId: "nova".into(), payee, token, amount, deadline: 2_000_000_000 }.abi_encode();
+
+    let ok = rules::check_evm_transaction(&tx(escrow, fund(other, usdt, U256::from(25u64) * wei), U256::ZERO), &agent, None).await.unwrap();
+    assert!(ok.summary.starts_with("hire ") && ok.spends.get("pay-usd") == Some(&U256::from(25_000_000u64)), "{} {:?}", ok.summary, ok.spends);
+    let bnb = rules::check_evm_transaction(&tx(escrow, fund(other, Address::ZERO, wei / U256::from(10u64)), wei / U256::from(10u64)), &agent, None).await.unwrap();
+    assert_eq!(bnb.spends.get("pay-bnb"), Some(&(wei / U256::from(10u64))));
+    let refused = |r: Result<orvyn_core::wallet_policy::Checked>| r.unwrap_err().message;
+    assert_eq!(refused(rules::check_evm_transaction(&tx(escrow, fund(me, usdt, wei), U256::ZERO), &agent, None).await), "an agent can't hire itself");
+    assert_eq!(refused(rules::check_evm_transaction(&tx(escrow, fund(other, Address::ZERO, wei), U256::ZERO), &agent, None).await), "the BNB attached must match the job's amount");
+    assert_eq!(refused(rules::check_evm_transaction(&tx(escrow, fund(other, other, wei), U256::ZERO), &agent, None).await), "jobs are paid in BNB, USDT or USDC");
+    assert!(rules::check_evm_transaction(&tx(escrow, approve_0Call { jobId: "h1".into() }.abi_encode(), U256::ZERO), &agent, None).await.is_ok(), "approving its job");
+    assert!(refused(rules::check_evm_transaction(&tx(escrow, releaseCall { jobId: "h1".into() }.abi_encode(), U256::ZERO), &agent, None).await).starts_with("only fund, approve"));
+    // Approvals of the escrow: USDT yes (within the cap), another token no.
+    assert!(rules::check_evm_transaction(&tx(usdt, approve_1Call { spender: escrow, amount: U256::from(25u64) * wei }.abi_encode(), U256::ZERO), &agent, None).await.is_ok());
+    assert_eq!(refused(rules::check_evm_transaction(&tx(other, approve_1Call { spender: escrow, amount: wei }.abi_encode(), U256::ZERO), &agent, None).await), "the jobs escrow may only be approved for USDT or USDC");
 }

@@ -299,6 +299,27 @@ row!(
         email_thread_id: Option<String>,
         created_at: Time,
         updated_at: Time,
+        /// Set when the client is one of Orvyn's agents (hiring with its own wallet).
+        client_agent_id: Option<String>,
+    }
+);
+
+row!(
+    /// An agent's request to hire another agent, waiting for its owner's yes (the "ask me first"
+    /// mode of the Hire agents plugin).
+    HireProposal {
+        id: String,
+        agent_id: String,
+        target_agent_id: String,
+        brief: String,
+        token: String,
+        price_usd: f64,
+        reason: Option<String>,
+        status: String,
+        hire_id: Option<String>,
+        error: Option<String>,
+        created_at: Time,
+        decided_at: Option<Time>,
     }
 );
 

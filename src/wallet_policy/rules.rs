@@ -20,7 +20,7 @@ use serde_json::Value;
 
 use super::config::cfg;
 use super::grants::{verify_grant, OwnerGrant, Withdrawal};
-use super::{add_spend, addr, aster, orvynpay, refuse, rng, trade, usd_micros, venus, x402, Checked, EvmAgent, Spends, TxRequest, TypedData};
+use super::{add_spend, addr, aster, jobs, orvynpay, refuse, rng, trade, usd_micros, venus, x402, Checked, EvmAgent, Spends, TxRequest, TypedData};
 use crate::error::Result;
 
 const NATIVE_TOKEN: &str = "0x0000000000000000000000000000000000000000";
@@ -165,6 +165,9 @@ pub async fn check_evm_transaction(tx: &TxRequest, agent: &EvmAgent, grant: Opti
     if let Some(s) = orvynpay::check_orvynpay_transaction(&to, data, value, agent, &mut spends)? {
         return ok(s, spends);
     }
+    if let Some(s) = jobs::check_jobs_transaction(&to, data, value, agent, &mut spends)? {
+        return ok(s, spends);
+    }
     if let Some(s) = venus::check_venus_transaction(&to, data, value, &mut spends)? {
         return ok(s, spends);
     }
@@ -206,10 +209,19 @@ pub async fn check_evm_transaction(tx: &TxRequest, agent: &EvmAgent, grant: Opti
                 }
                 return ok(format!("approve {} of {to} for the registry", a.amount), spends);
             }
+            if let Some(stable) = jobs::is_jobs_approval(&to, &spender) {
+                if !stable {
+                    return Err(refuse("the jobs escrow may only be approved for USDT or USDC"));
+                }
+                if usd_micros(a.amount) > c.daily_cap_pay_usd {
+                    return Err(refuse("approval above the daily payment cap"));
+                }
+                return ok(format!("approve {} of {to} for the jobs escrow", a.amount), spends);
+            }
             if let Some(s) = trade::check_trade_approval(&to, &a.spender.to_string(), a.amount)? {
                 return ok(s, spends);
             }
-            Err(refuse("approvals may only go to Permit2 (x402), the Orvyn registry or a trading router"))
+            Err(refuse("approvals may only go to Permit2 (x402), the Orvyn registry, the jobs escrow or a trading router"))
         }
         Erc20::Erc20Calls::transfer(t) => {
             let recipient = addr(&t.to);

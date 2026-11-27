@@ -10,6 +10,7 @@ pub mod aster;
 pub mod config;
 pub mod grants;
 pub mod guard;
+pub mod jobs;
 pub mod orvynpay;
 pub mod privy_policy;
 pub mod rng;

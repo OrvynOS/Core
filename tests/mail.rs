@@ -86,6 +86,7 @@ fn escrow_calls_offers_and_studio_rules_match() {
         email_thread_id: None,
         created_at: now,
         updated_at: now,
+        client_agent_id: None,
     };
     let payee = "0x6666666666666666666666666666666666666666";
     let check = |got: orvyn_core::billing::Calls, want: &Value| {

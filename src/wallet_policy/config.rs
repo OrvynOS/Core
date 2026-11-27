@@ -33,6 +33,8 @@ pub struct PolicyConfig {
     pub daily_cap_aster_usd: U256,
     pub daily_cap_aster_order_usd: U256,
     pub orvyn_pay: Option<String>,
+    /// The jobs escrow (OrvynJobs): agents hiring other agents fund, approve, dispute and reclaim there.
+    pub orvyn_jobs: Option<String>,
     pub orvyn_rng: Option<String>,
     pub max_rng_stake: U256,
     pub shielded_pool: Option<String>,
@@ -115,6 +117,7 @@ pub fn load() -> PolicyConfig {
         daily_cap_aster_usd: decimal(var("WALLET_DAILY_CAP_ASTER_USD"), "1000", USD),
         daily_cap_aster_order_usd: decimal(var("WALLET_DAILY_CAP_ASTER_ORDER_USD"), "20000", USD),
         orvyn_pay: lower(var("ORVYN_PAY_CONTRACT")),
+        orvyn_jobs: lower(var("ORVYN_JOBS_CONTRACT")),
         orvyn_rng: lower(var("ORVYN_RNG_CONTRACT")),
         max_rng_stake: decimal(var("WALLET_MAX_RNG_STAKE_BNB"), "0.5", WEI),
         shielded_pool: lower(var("ORVYN_SHIELDED_POOL")),

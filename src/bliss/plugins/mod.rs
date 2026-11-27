@@ -6,6 +6,7 @@ pub mod binance;
 pub mod chain;
 pub mod crafts;
 pub mod data;
+pub mod hiring;
 pub mod markets;
 pub mod network;
 pub mod orvynpay;
@@ -41,6 +42,7 @@ pub fn all() -> Vec<Arc<dyn Plugin>> {
         orvynpay::orvynpay(),
         work::mail(),
         work::hire(),
+        hiring::hire_agents(),
         work::game_studio(),
         data::dexscreener_plugin(),
         data::geckoterminal_plugin(),

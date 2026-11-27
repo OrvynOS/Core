@@ -7,6 +7,7 @@ pub mod agent;
 pub mod agentid;
 pub mod api_clients;
 pub mod aster;
+pub mod agent_hiring;
 pub mod agentic_wallet;
 pub mod ai;
 pub mod auth;
