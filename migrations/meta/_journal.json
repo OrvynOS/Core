@@ -141,6 +141,13 @@
       "when": 1795996800000,
       "tag": "0019_agents_hire_agents",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1796083200000,
+      "tag": "0020_vyn_default_ai",
+      "breakpoints": true
     }
   ]
 }

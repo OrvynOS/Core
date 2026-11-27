@@ -30,7 +30,7 @@ pub struct ProviderDef {
 const NEAR_AI_URL: &str = "https://cloud-api.near.ai/v1";
 
 pub static PROVIDERS: &[ProviderDef] = &[
-    ProviderDef { id: "orvyn", label: "Orvyn (pay with credits)", key_url: "https://app.orvyn.cash/credits", preferred_model: Some(crate::inference::DEFAULT_MODEL), wire: Wire::Orvyn },
+    ProviderDef { id: "orvyn", label: "Orvyn AI (pay with Orvyn credits)", key_url: "https://app.orvyn.cash/credits", preferred_model: Some(crate::inference::DEFAULT_MODEL), wire: Wire::Orvyn },
     ProviderDef { id: "anthropic", label: "Anthropic (Claude)", key_url: "https://console.anthropic.com/settings/keys", preferred_model: Some("claude-opus-5"), wire: Wire::Anthropic },
     ProviderDef { id: "openai", label: "OpenAI", key_url: "https://platform.openai.com/api-keys", preferred_model: None, wire: Wire::OpenAi("https://api.openai.com/v1") },
     ProviderDef { id: "google", label: "Google Gemini", key_url: "https://aistudio.google.com/apikey", preferred_model: None, wire: Wire::Google },
@@ -62,9 +62,12 @@ pub struct CatalogEntry {
     pub preferred_model: Option<&'static str>,
 }
 
+/// Providers kept working for existing agents but no longer offered.
+const RETIRED: &[&str] = &["openrouter"];
+
 /// Public provider catalog for the UI.
 pub fn provider_catalog() -> Vec<CatalogEntry> {
-    PROVIDERS.iter().map(|p| CatalogEntry { id: p.id, label: p.label, key_url: p.key_url, preferred_model: p.preferred_model }).collect()
+    PROVIDERS.iter().filter(|p| !RETIRED.contains(&p.id)).map(|p| CatalogEntry { id: p.id, label: p.label, key_url: p.key_url, preferred_model: p.preferred_model }).collect()
 }
 
 /// A bad key, as the creator should see it.

@@ -258,9 +258,68 @@ pub async fn revoke_key(account_id: &str, id: &str) -> Result<()> {
 
 /// The account behind an Orvyn API key, if it's live.
 pub async fn account_for_key(secret: &str) -> Result<Option<String>> {
+    Ok(key_owner(secret).await?.map(|(a, _)| a))
+}
+
+/// The account behind an Orvyn API key and what the key is for ("vyn" for Vyn's built-in key).
+pub async fn key_owner(secret: &str) -> Result<Option<(String, Option<String>)>> {
     if !is_orvyn_key(secret) {
         return Ok(None);
     }
-    let row: Option<(String, String)> = sqlx::query_as("update inference_keys set last_used_at = now() where key_hash = $1 and revoked_at is null returning id, account_id").bind(key_hash(secret)).fetch_optional(db()).await?;
-    Ok(row.map(|(_, a)| a))
+    Ok(sqlx::query_as("update inference_keys set last_used_at = now() where key_hash = $1 and revoked_at is null returning account_id, purpose").bind(key_hash(secret)).fetch_optional(db()).await?)
+}
+
+/// Vyn's built-in Orvyn AI key for an account (not counted against the key limit; one live at a time).
+pub async fn create_vyn_key(account_id: &str) -> Result<String> {
+    let account = account_id.to_lowercase();
+    sqlx::query("update inference_keys set revoked_at = now() where account_id = $1 and purpose = 'vyn' and revoked_at is null").bind(&account).execute(db()).await?;
+    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let body: String = (0..40).map(|_| ALPHABET[rand::random_range(0..ALPHABET.len())] as char).collect();
+    let secret = format!("orv_sk_{body}");
+    sqlx::query("insert into inference_keys (id, account_id, name, key_hash, hint, purpose) values ($1, $2, 'Vyn (built in)', $3, $4, 'vyn')")
+        .bind(crate::lifecycle::uuid_v4())
+        .bind(&account)
+        .bind(key_hash(&secret))
+        .bind(format!("orv_sk_…{}", &body[body.len() - 4..]))
+        .execute(db())
+        .await?;
+    Ok(secret)
+}
+
+// ---- Vyn's free allowance: each month, Orvyn covers the first VYN_FREE_USD_PER_MONTH (default
+// $1) of what Vyn's built-in key spends; after that it's Orvyn credits as usual. ----
+
+fn this_month() -> String {
+    chrono::Utc::now().format("%Y-%m").to_string()
+}
+
+pub fn vyn_allowance_micro() -> i64 {
+    let usd: f64 = std::env::var("VYN_FREE_USD_PER_MONTH").ok().and_then(|v| v.parse().ok()).filter(|v: &f64| *v >= 0.0).unwrap_or(1.0);
+    (usd * MICRO).round() as i64
+}
+
+/// What's left of this month's allowance, in micro-USD.
+pub async fn vyn_allowance_left(account_id: &str) -> Result<i64> {
+    let used: Option<i64> = sqlx::query_scalar("select used_micro from vyn_allowance where account_id = $1 and month = $2").bind(account_id.to_lowercase()).bind(this_month()).fetch_optional(db()).await?;
+    Ok((vyn_allowance_micro() - used.unwrap_or(0)).max(0))
+}
+
+/// Settle a Vyn request: the allowance first, the rest from credits. Returns the part credits paid.
+pub async fn charge_vyn(account_id: &str, micro: i64, model: &str, input_tokens: u64, output_tokens: u64) -> Result<i64> {
+    let account = account_id.to_lowercase();
+    let micro = micro.max(0);
+    let free = micro.min(vyn_allowance_left(&account).await?);
+    if free > 0 {
+        sqlx::query("insert into vyn_allowance (account_id, month, used_micro) values ($1, $2, $3) on conflict (account_id, month) do update set used_micro = vyn_allowance.used_micro + excluded.used_micro")
+            .bind(&account)
+            .bind(this_month())
+            .bind(free)
+            .execute(db())
+            .await?;
+    }
+    let paid = micro - free;
+    if paid > 0 {
+        charge(&account, paid, model, "vyn", input_tokens, output_tokens).await?;
+    }
+    Ok(paid)
 }

@@ -667,7 +667,7 @@ row!(CreditEntry {
     created_at: Time,
 });
 
-row!(InferenceKey { id: String, account_id: String, name: String, key_hash: String, hint: String, created_at: Time, last_used_at: Option<Time>, revoked_at: Option<Time> });
+row!(InferenceKey { id: String, account_id: String, name: String, key_hash: String, hint: String, created_at: Time, last_used_at: Option<Time>, revoked_at: Option<Time>, purpose: Option<String> });
 
 row!(ChatThread { id: String, account_id: String, title: String, model: String, created_at: Time, updated_at: Time });
 

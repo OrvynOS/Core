@@ -100,13 +100,14 @@ async fn a_turn_with_server_and_device_tools() {
     unsafe { std::env::set_var("ANTHROPIC_BASE_URL", &url) };
 
     let account = "0xada0000000000000000000000000000000000001";
-    // No settings yet: the turn asks for a key first (412).
+    // (With no settings, Vyn sets herself up on Orvyn AI: tests/vyn_default_ai.rs. Here she uses
+    // the person's own Anthropic key, which replaces that default.)
     let thread = vyn::create_thread(account, None).await.unwrap();
     let id = thread["id"].as_str().unwrap().to_string();
     let input = |t: Option<&str>, results: Vec<vyn::ToolResult>| vyn::TurnInput { text: t.map(String::from), tool_results: results, tools: vec!["ask_person".into(), "approve_payment".into()], device: "desktop".into() };
-    assert_eq!(vyn::run_turn(account, &id, input(Some("hi"), vec![]), None).await.unwrap_err().status(), 412);
     let key = orvyn_core::secrets::encrypt_secret("sk-ant-test", &format!("vyn:{account}"), orvyn_core::secrets::SecretKind::AiKey).unwrap();
-    sqlx::query("insert into vyn_settings (account_id, ai_provider, ai_model, ai_key_encrypted, ai_key_hint, auto_approve_usd, persona, timezone) values ($1, 'anthropic', 'claude-test', $2, 'sk-…test', 0, $3, 'Europe/Lisbon')")
+    sqlx::query("insert into vyn_settings (account_id, ai_provider, ai_model, ai_key_encrypted, ai_key_hint, auto_approve_usd, persona, timezone) values ($1, 'anthropic', 'claude-test', $2, 'sk-…test', 0, $3, 'Europe/Lisbon')
+         on conflict (account_id) do update set ai_provider = excluded.ai_provider, ai_model = excluded.ai_model, ai_key_encrypted = excluded.ai_key_encrypted, ai_key_hint = excluded.ai_key_hint, persona = excluded.persona, timezone = excluded.timezone")
         .bind(account)
         .bind(key)
         .bind(json!({ "tone": "calm", "callMe": "Ada" }))

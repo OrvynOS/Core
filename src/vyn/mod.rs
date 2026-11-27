@@ -370,10 +370,34 @@ pub fn mood_of(text: &str, device_calls: &[String], used_tools: &[String]) -> &'
 
 // ---------- Settings ----------
 
+/// The model Vyn uses out of the box, through Orvyn AI (cheap, fast, good with tools).
+pub const DEFAULT_MODEL: &str = "anthropic/claude-haiku-5.5";
+
+/// Vyn's settings, made on first use when the person hasn't set an AI up: Orvyn AI with the
+/// default model and Vyn's built-in key (a free monthly allowance, then Orvyn credits).
+pub async fn ensure_settings(account_id: &str) -> Result<VynSettings> {
+    let account = account_id.to_lowercase();
+    if let Some(s) = sqlx::query_as::<_, VynSettings>("select * from vyn_settings where account_id = $1").bind(&account).fetch_optional(db()).await? {
+        return Ok(s);
+    }
+    let key = crate::credits::create_vyn_key(&account).await?;
+    sqlx::query(
+        "insert into vyn_settings (account_id, ai_provider, ai_model, ai_key_encrypted, ai_key_hint, auto_approve_usd, persona, timezone, updated_at)
+         values ($1, 'orvyn', $2, $3, $4, 0, '{}'::jsonb, 'UTC', now()) on conflict (account_id) do nothing",
+    )
+    .bind(&account)
+    .bind(DEFAULT_MODEL)
+    .bind(encrypt_secret(&key, &aad(&account), SecretKind::AiKey)?)
+    .bind(secret_hint(&key))
+    .execute(db())
+    .await?;
+    Ok(sqlx::query_as("select * from vyn_settings where account_id = $1").bind(&account).fetch_one(db()).await?)
+}
+
 pub async fn get_settings(account_id: &str) -> Result<Option<Value>> {
-    let s: Option<VynSettings> = sqlx::query_as("select * from vyn_settings where account_id = $1").bind(account_id.to_lowercase()).fetch_optional(db()).await?;
+    let s: Option<VynSettings> = Some(ensure_settings(account_id).await?);
     Ok(s.map(|s| {
-        json!({ "aiProvider": s.ai_provider, "aiModel": s.ai_model, "aiKeyHint": s.ai_key_hint, "autoApproveUsd": s.auto_approve_usd, "persona": s.persona, "timezone": s.timezone, "checkInTime": s.check_in_time })
+        json!({ "aiProvider": s.ai_provider, "aiModel": s.ai_model, "aiKeyHint": s.ai_key_hint, "autoApproveUsd": s.auto_approve_usd, "persona": s.persona, "timezone": s.timezone, "checkInTime": s.check_in_time, "builtIn": s.ai_provider == "orvyn" })
     }))
 }
 
@@ -409,11 +433,22 @@ pub async fn save_settings(account_id: &str, input: &SettingsInput) -> Result<Op
     }
     let account = account_id.to_lowercase();
     let existing: Option<VynSettings> = sqlx::query_as("select * from vyn_settings where account_id = $1").bind(&account).fetch_optional(db()).await?;
-    let key = input.api_key.as_deref().map(str::trim).filter(|k| !k.is_empty());
+    let mut key = input.api_key.as_deref().map(str::trim).filter(|k| !k.is_empty()).map(String::from);
+    // Orvyn AI needs no key from the person: Vyn's built-in one is used (made when switching to it).
+    let built_in = input.ai_provider == "orvyn" && key.is_none();
+    if built_in {
+        if !crate::inference::MODELS.contains(&input.ai_model.as_str()) {
+            return Err(Error::invalid("Orvyn AI doesn't serve that model"));
+        }
+        if existing.as_ref().is_none_or(|e| e.ai_provider != "orvyn") {
+            key = Some(crate::credits::create_vyn_key(&account).await?);
+        }
+    }
+    let key = key.as_deref();
     if key.is_none() && existing.is_none() {
         return Err(Error::invalid("an API key is required"));
     }
-    if let Some(k) = key {
+    if let Some(k) = key.filter(|_| !built_in) {
         let models = crate::ai::providers::verify_provider_key(&input.ai_provider, k).await.map_err(|e| Error::invalid(if e.kind == crate::error::Kind::Invalid { e.message } else { "couldn't check the API key".into() }))?;
         if !models.is_empty() && !models.contains(&input.ai_model) {
             return Err(Error::invalid("that model isn't available with this key"));
@@ -618,7 +653,10 @@ pub fn run_turn<'a>(account_id: &'a str, thread_id: &'a str, input: TurnInput, o
 async fn run_turn_inner(account_id: &str, thread_id: &str, input: TurnInput, on_text: OnText<'_>) -> Result<TurnOutput> {
     let thread = own_thread(account_id, thread_id).await?;
     let settings: Option<VynSettings> = sqlx::query_as("select * from vyn_settings where account_id = $1").bind(account_id.to_lowercase()).fetch_optional(db()).await?;
-    let settings = settings.ok_or_else(|| Error::precondition("set up Vyn's AI provider and key first"))?;
+    let settings = match settings {
+        Some(s) => s,
+        None => ensure_settings(account_id).await?,
+    };
     let text = input.text.as_deref().map(str::trim).filter(|t| !t.is_empty());
     if text.is_none() && input.tool_results.is_empty() {
         return Err(Error::invalid("send a message or tool results"));

@@ -231,6 +231,16 @@ fn rewrite_usage(v: &mut Value, micro: i64) {
     }
 }
 
+/// Charge a finished request: Vyn's built-in key spends its monthly allowance first.
+async fn settle(account: &str, source: &str, micro: i64, model: &str, input_tokens: u64, output_tokens: u64) -> Result<()> {
+    if source == "vyn" {
+        credits::charge_vyn(account, micro, model, input_tokens, output_tokens).await?;
+    } else {
+        credits::charge(account, micro, model, source, input_tokens, output_tokens).await?;
+    }
+    Ok(())
+}
+
 /// Run one chat completion for `account`, charging it. With `on_chunk`, the request streams and
 /// each chunk (already rewritten for the client) is handed over as it arrives; the reply is then
 /// `None`. Without it, the whole reply comes back.
@@ -247,10 +257,12 @@ pub async fn complete(account: &str, source: &str, body: Value, on_chunk: Option
         return Err(Error::invalid("messages must be a non-empty array."));
     }
 
-    // Credit: refuse when it's out, and cap the reply to what the balance covers.
-    let balance = credits::balance(account).await?;
+    // Credit: refuse when it's out, and cap the reply to what the balance covers. Vyn's built-in
+    // key also has this month's free allowance.
+    let vyn = source == "vyn";
+    let balance = credits::balance(account).await?.max(0) + if vyn { credits::vyn_allowance_left(account).await? } else { 0 };
     if balance < MIN_BALANCE_MICRO {
-        return Err(Error::payment_required("You're out of Orvyn credits. Top up to keep going."));
+        return Err(Error::payment_required(if vyn { "Vyn's free allowance for this month is used up. Top up Orvyn credits to keep talking." } else { "You're out of Orvyn credits. Top up to keep going." }));
     }
     let k = markup();
     let input_chars = serde_json::to_string(&obj.get("messages")).map(|s| s.len()).unwrap_or(0) + serde_json::to_string(&obj.get("tools")).map(|s| s.len()).unwrap_or(0);
@@ -339,7 +351,7 @@ pub async fn complete(account: &str, source: &str, body: Value, on_chunk: Option
             usage.output_tokens = (usage.text.len() as f64 / 4.0).ceil() as u64;
             usage.micro = cost_micro(&info, None, usage.input_tokens, usage.output_tokens);
         }
-        credits::charge(account, usage.micro, &model, source, usage.input_tokens, usage.output_tokens).await?;
+        settle(account, source, usage.micro, &model, usage.input_tokens, usage.output_tokens).await?;
         if let Some(m) = failed.filter(|_| usage.text.is_empty()) {
             return Err(Error::new(Kind::Unavailable, m));
         }
@@ -351,7 +363,7 @@ pub async fn complete(account: &str, source: &str, body: Value, on_chunk: Option
         usage.output_tokens = o;
         usage.micro = cost_micro(&info, c, i, o);
         usage.text = v["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string();
-        credits::charge(account, usage.micro, &model, source, i, o).await?;
+        settle(account, source, usage.micro, &model, i, o).await?;
         rewrite_usage(&mut v, usage.micro);
         Some(v)
     };
