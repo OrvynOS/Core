@@ -371,7 +371,7 @@ pub fn mood_of(text: &str, device_calls: &[String], used_tools: &[String]) -> &'
 // ---------- Settings ----------
 
 /// The model Vyn uses out of the box, through Orvyn AI (cheap, fast, good with tools).
-pub const DEFAULT_MODEL: &str = "anthropic/claude-haiku-5.5";
+pub const DEFAULT_MODEL: &str = crate::inference::DEFAULT_MODEL;
 
 /// Vyn's settings, made on first use when the person hasn't set an AI up: Orvyn AI with the
 /// default model and Vyn's built-in key (a free monthly allowance, then Orvyn credits).

@@ -22,15 +22,25 @@ struct Mock {
 
 async fn models() -> impl IntoResponse {
     Json(json!({ "data": [
-        { "id": "anthropic/claude-sonnet-5.5", "name": "Anthropic: Claude Sonnet 5.5", "context_length": 1000000, "pricing": { "prompt": "0.000002", "completion": "0.00001" }, "supported_parameters": ["tools"] },
-        { "id": "x-ai/grok-4.7", "name": "SpaceXSI: Grok 4.7", "context_length": 500000, "pricing": { "prompt": "0.000002", "completion": "0.000006" }, "supported_parameters": ["tools"] },
+        { "id": "z-ai/glm-5.3", "name": "Z.ai: GLM 5.3", "context_length": 1000000, "pricing": { "prompt": "0.000002", "completion": "0.00001" }, "supported_parameters": ["tools"] },
+        { "id": "openai/gpt-oss-120b", "name": "OpenAI: gpt-oss-120b", "context_length": 500000, "pricing": { "prompt": "0.000002", "completion": "0.000006" }, "supported_parameters": ["tools"] },
         { "id": "someone/uncurated", "name": "Someone: Uncurated", "pricing": { "prompt": "0", "completion": "0" } },
+    ] }))
+}
+
+
+/// The upstream's Zero Data Retention endpoint list.
+async fn zdr() -> impl IntoResponse {
+    Json(json!({ "data": [
+        { "model_id": "z-ai/glm-5.3", "provider_name": "Amazon Bedrock", "tag": "amazon-bedrock", "safety_retention": false },
+        { "model_id": "openai/gpt-oss-120b", "provider_name": "xAI", "tag": "fireworks", "safety_retention": false },
+        { "model_id": "someone/uncurated", "provider_name": "X", "tag": "x", "safety_retention": false },
     ] }))
 }
 
 async fn chat(State(m): State<Mock>, Json(body): Json<Value>) -> impl IntoResponse {
     m.requests.lock().unwrap().push(body.clone());
-    if body["model"] == "x-ai/grok-4.7" {
+    if body["model"] == "openai/gpt-oss-120b" {
         return (axum::http::StatusCode::PAYMENT_REQUIRED, Json(json!({ "error": { "message": "OpenRouter: insufficient credits on openrouter.ai" } }))).into_response();
     }
     let usage = json!({ "prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150, "cost": 0.0007, "cost_details": { "upstream": 0.0007 }, "is_byok": false });
@@ -50,7 +60,7 @@ async fn chat(State(m): State<Mock>, Json(body): Json<Value>) -> impl IntoRespon
 #[tokio::test]
 async fn gateway_credits_chat_and_keys() {
     let mock = Mock::default();
-    let base = support::serve_forever(Router::new().route("/models", get(models)).route("/chat/completions", post(chat)).with_state(mock.clone()));
+    let base = support::serve_forever(Router::new().route("/models", get(models)).route("/endpoints/zdr", get(zdr)).route("/chat/completions", post(chat)).with_state(mock.clone()));
     unsafe { std::env::set_var("ORVYN_INFERENCE_UPSTREAM", &base) };
     support::test_env(&[("OPENROUTER_API_KEY", "sk-or-test"), ("ORVYN_CREDITS_ADDRESS", "0x00000000000000000000000000000000000000cc")]);
     support::shared_db().await;
@@ -61,9 +71,9 @@ async fn gateway_credits_chat_and_keys() {
     assert_eq!(list[0]["id"], inference::ORVYN_MODEL);
     assert_eq!(list[0]["soon"], true);
     assert!(list.iter().all(|m| m["id"] != "someone/uncurated"));
-    let sonnet = list.iter().find(|m| m["id"] == "anthropic/claude-sonnet-5.5").unwrap();
-    assert_eq!(sonnet["name"], "Claude Sonnet 5.5");
-    assert_eq!(sonnet["maker"], "Anthropic");
+    let sonnet = list.iter().find(|m| m["id"] == "z-ai/glm-5.3").unwrap();
+    assert_eq!(sonnet["name"], "GLM 5.3");
+    assert_eq!(sonnet["maker"], "Z.ai");
     assert_eq!(sonnet["inputPerMillion"], 2.4);
     assert_eq!(sonnet["outputPerMillion"], 12.0);
     assert!(!serde_json::to_string(&view).unwrap().to_lowercase().contains("openrouter"));
@@ -71,13 +81,13 @@ async fn gateway_credits_chat_and_keys() {
     let ask = |model: &str| json!({ "model": model, "messages": [{ "role": "user", "content": "hi" }], "max_tokens": 100000, "provider": { "order": ["x"] }, "models": ["a", "b"] });
 
     // No credit: refused before anything goes upstream.
-    let e = inference::complete(ME, "api", ask("anthropic/claude-sonnet-5.5"), None).await.unwrap_err();
+    let e = inference::complete(ME, "api", ask("z-ai/glm-5.3"), None).await.unwrap_err();
     assert_eq!(e.kind, Kind::PaymentRequired);
     assert!(mock.requests.lock().unwrap().is_empty());
 
     // $0.50 of credit: the reply is capped to what that buys, then charged at cost x 1.2.
     assert_eq!(credits::adjust(ME, 0.5).await.unwrap(), 500_000);
-    let (reply, usage) = inference::complete(ME, "api", ask("anthropic/claude-sonnet-5.5"), None).await.unwrap();
+    let (reply, usage) = inference::complete(ME, "api", ask("z-ai/glm-5.3"), None).await.unwrap();
     let reply = reply.unwrap();
     assert_eq!(reply["choices"][0]["message"]["content"], "Hi there.");
     assert!(reply.get("provider").is_none());
@@ -86,7 +96,8 @@ async fn gateway_credits_chat_and_keys() {
     assert_eq!(usage.micro, 840);
     assert_eq!(credits::balance(ME).await.unwrap(), 500_000 - 840);
     let sent = mock.requests.lock().unwrap().last().cloned().unwrap();
-    assert!(sent.get("provider").is_none() && sent.get("models").is_none(), "routing options are dropped: {sent}");
+    assert!(sent.get("models").is_none() && sent["provider"].get("order").is_none(), "the caller's routing options are dropped: {sent}");
+    assert_eq!((sent["provider"]["zdr"].as_bool(), sent["provider"]["data_collection"].as_str()), (Some(true), Some("deny")), "zero data retention only: {sent}");
     assert_eq!(sent["usage"], json!({ "include": true }));
     let max = sent["max_tokens"].as_u64().unwrap();
     assert!(max < 100000 && max > 30000, "capped to the balance: {max}");
@@ -98,7 +109,7 @@ async fn gateway_credits_chat_and_keys() {
     assert!(soon.message.contains("coming soon"));
 
     // Orvyn's own upstream account failing is "briefly unavailable", never the host's name.
-    let e = inference::complete(ME, "api", ask("x-ai/grok-4.7"), None).await.unwrap_err();
+    let e = inference::complete(ME, "api", ask("openai/gpt-oss-120b"), None).await.unwrap_err();
     assert_eq!(e.kind, Kind::Unavailable);
     assert!(!e.message.to_lowercase().contains("openrouter"));
 
@@ -106,7 +117,7 @@ async fn gateway_credits_chat_and_keys() {
     let seen = Arc::new(Mutex::new(String::new()));
     let s2 = seen.clone();
     let on_text = move |t: &str| s2.lock().unwrap().push_str(t);
-    let done = inference::chat_turn(ME, None, "Say hello\nplease", Some("anthropic/claude-sonnet-5.5"), Some(&on_text)).await.unwrap();
+    let done = inference::chat_turn(ME, None, "Say hello\nplease", Some("z-ai/glm-5.3"), Some(&on_text)).await.unwrap();
     assert_eq!(*seen.lock().unwrap(), "Hello!");
     assert_eq!(done["message"]["content"], "Hello!");
     assert_eq!(done["thread"]["title"], "Say hello");
@@ -127,7 +138,7 @@ async fn gateway_credits_chat_and_keys() {
 
     // A failed turn leaves no trace.
     let before = inference::list_threads(ME).await.unwrap().len();
-    assert!(inference::chat_turn(ME, None, "hi", Some("x-ai/grok-4.7"), None).await.is_err());
+    assert!(inference::chat_turn(ME, None, "hi", Some("openai/gpt-oss-120b"), None).await.is_err());
     assert_eq!(inference::list_threads(ME).await.unwrap().len(), before);
 
     // API keys: work until revoked; only the hash is stored.

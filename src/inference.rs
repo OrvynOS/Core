@@ -4,6 +4,8 @@
 //! "orvyn" provider) runs here, on the API server:
 //!   1. the caller is a signed-in account (session or `orv_sk_` key) with credit;
 //!   2. the model must be in the curated list; `max_tokens` is capped to what the balance covers;
+//!      only models with a Zero Data Retention endpoint are served, and every request is routed to
+//!      zero-retention endpoints only (`zero_retention`);
 //!   3. the request goes upstream with Orvyn's own key (OPENROUTER_API_KEY), which never leaves the
 //!      server and is never named to clients;
 //!   4. the reply's upstream cost times ORVYN_INFERENCE_MARKUP is charged to the account.
@@ -22,27 +24,26 @@ use crate::env::env;
 use crate::error::{Error, Kind, Result};
 
 /// Orvyn AI's default model; each account can choose its own (`set_default_model`).
-pub const DEFAULT_MODEL: &str = "anthropic/claude-haiku-5.5";
+pub const DEFAULT_MODEL: &str = "deepseek/deepseek-v4.1-flash";
 /// Orvyn's own model, listed as coming soon (not selectable yet).
 pub const ORVYN_MODEL: &str = "orvyn/orvyn-1";
 
 /// The models Orvyn offers, in the order the app lists them.
+/// Open-weight models only (frontier models like Claude, GPT and Grok are bring-your-own-key: an
+/// agent's or Vyn's own provider key). Each must have a Zero Data Retention endpoint.
 pub const MODELS: &[&str] = &[
-    "anthropic/claude-sonnet-5.5",
-    "anthropic/claude-opus-5.5",
-    "anthropic/claude-fable-5.2",
-    "anthropic/claude-haiku-5.5",
-    "openai/gpt-6.2-sol",
-    "openai/gpt-6.2-astra",
-    "openai/gpt-6-luna",
-    "google/gemini-4-neon",
-    "google/gemini-4-hydrogen",
-    "x-ai/grok-4.7",
     "deepseek/deepseek-v4.1-flash",
-    "qwen/qwen4-max",
+    "deepseek/deepseek-v4-pro-0813",
     "moonshotai/kimi-k3.1-pro",
     "z-ai/glm-5.3",
-    "mistralai/mistral-large-4-0",
+    "z-ai/glm-5.3-flash",
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "minimax/minimax-m3.1-flash",
+    "qwen/qwen3.8-27b",
+    "nvidia/nemotron-3.5-super-vl",
+    "google/gemma-4-31b-it",
+    "meta-llama/llama-4-maverick",
 ];
 
 /// Requests need at least this much credit ($0.01).
@@ -76,6 +77,52 @@ pub struct ModelInfo {
     pub prompt: f64,
     pub completion: f64,
     pub tools: bool,
+    /// Providers to skip for this model: they keep data (Safety Retention) where others don't.
+    pub skip_providers: Vec<String>,
+}
+
+/// Orvyn AI never sends a request where it may be kept: only Zero Data Retention endpoints, and
+/// only providers that don't collect data. A model is served only if at least one endpoint keeps
+/// nothing at all (no Safety Retention either).
+fn zero_retention(info: &ModelInfo) -> Value {
+    let mut p = json!({ "zdr": true, "data_collection": "deny", "allow_fallbacks": true });
+    if !info.skip_providers.is_empty() {
+        p["ignore"] = json!(info.skip_providers);
+    }
+    p
+}
+
+/// The ZDR endpoint list: per model, whether some endpoint keeps nothing, and which providers keep
+/// some data (Safety Retention) for it.
+async fn fetch_zero_retention() -> Result<HashMap<String, (bool, Vec<String>)>> {
+    let res = crate::http::client().get(format!("{}/endpoints/zdr", upstream_base())).timeout(Duration::from_secs(30)).send().await.map_err(|e| Error::internal(format!("zdr list: {e}")))?;
+    if !res.status().is_success() {
+        return Err(Error::internal(format!("zdr list: {}", res.status())));
+    }
+    let body: Value = res.json().await.map_err(|e| Error::internal(format!("zdr list: {e}")))?;
+    // model -> (providers with a zero-retention endpoint, providers with only Safety Retention ones)
+    let mut strict: HashMap<String, std::collections::BTreeSet<String>> = HashMap::new();
+    let mut retains: HashMap<String, std::collections::BTreeSet<String>> = HashMap::new();
+    for e in body["data"].as_array().into_iter().flatten() {
+        let Some(model) = e["model_id"].as_str() else { continue };
+        if !MODELS.contains(&model) {
+            continue;
+        }
+        let slug = e["tag"].as_str().and_then(|t| t.split('/').next()).unwrap_or("").to_string();
+        if e["safety_retention"].as_bool().unwrap_or(true) {
+            retains.entry(model.to_string()).or_default().insert(slug);
+        } else {
+            strict.entry(model.to_string()).or_default().insert(slug);
+        }
+    }
+    Ok(MODELS
+        .iter()
+        .map(|m| {
+            let ok = strict.get(*m).is_some_and(|s| !s.is_empty());
+            let skip = retains.get(*m).map(|r| r.iter().filter(|p| !p.is_empty() && !strict.get(*m).is_some_and(|s| s.contains(*p))).cloned().collect()).unwrap_or_default();
+            (m.to_string(), (ok, skip))
+        })
+        .collect())
 }
 
 static PRICES: LazyLock<Mutex<Option<(Instant, HashMap<String, ModelInfo>)>>> = LazyLock::new(|| Mutex::new(None));
@@ -130,12 +177,15 @@ async fn fetch_catalog() -> Result<HashMap<String, ModelInfo>> {
         return Err(Error::internal(format!("model list: {}", res.status())));
     }
     let body: Value = res.json().await.map_err(|e| Error::internal(format!("model list: {e}")))?;
+    // Without the ZDR list, nothing is served (never a model that may keep data).
+    let zdr = fetch_zero_retention().await?;
     let mut out = HashMap::new();
     for m in body["data"].as_array().into_iter().flatten() {
         let Some(id) = m["id"].as_str() else { continue };
         if !MODELS.contains(&id) {
             continue;
         }
+        let Some((true, skip)) = zdr.get(id).cloned() else { continue };
         let full = m["name"].as_str().unwrap_or(id);
         let (maker, name) = full.split_once(": ").map(|(a, b)| (a.to_string(), b.to_string())).unwrap_or_else(|| (id.split('/').next().unwrap_or("").to_string(), full.to_string()));
         out.insert(
@@ -148,6 +198,7 @@ async fn fetch_catalog() -> Result<HashMap<String, ModelInfo>> {
                 prompt: parse_price(&m["pricing"]["prompt"]),
                 completion: parse_price(&m["pricing"]["completion"]),
                 tools: m["supported_parameters"].as_array().is_some_and(|p| p.iter().any(|x| x == "tools")),
+                skip_providers: skip,
             },
         );
     }
@@ -380,6 +431,7 @@ pub async fn complete(account: &str, source: &str, body: Value, on_chunk: Option
     up.insert("max_tokens".into(), json!(max_tokens));
     up.insert("stream".into(), json!(stream));
     up.insert("usage".into(), json!({ "include": true }));
+    up.insert("provider".into(), zero_retention(&info));
     if stream {
         up.insert("stream_options".into(), json!({ "include_usage": true }));
     }
@@ -546,6 +598,7 @@ pub async fn messages(account: &str, source: &str, body: Value, beta: Option<&st
     up.insert("max_tokens".into(), json!(max_tokens));
     up.insert("stream".into(), json!(stream));
     // The person's account never goes upstream: a hash stands in for abuse reports.
+    up.insert("provider".into(), zero_retention(&info));
     up.insert("metadata".into(), json!({ "user_id": hex::encode(&<sha2::Sha256 as sha2::Digest>::digest(format!("orvyn:{account}").as_bytes())[..12]) }));
 
     let mut req = crate::http::client()

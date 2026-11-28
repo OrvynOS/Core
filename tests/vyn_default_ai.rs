@@ -1,5 +1,5 @@
-//! Vyn works out of the box on Orvyn AI: her settings are made on first use (Orvyn AI, Claude Haiku
-//! 5.5, a built-in key that only Vyn's requests carry), and what that key spends comes from a free
+//! Vyn works out of the box on Orvyn AI: her settings are made on first use (Orvyn AI, DeepSeek
+//! V4.1 Flash, a built-in key that only Vyn's requests carry), and what that key spends comes from a free
 //! monthly allowance before the person's Orvyn credits. Switching back to Orvyn AI needs no key.
 mod support;
 
@@ -25,8 +25,8 @@ async fn vyn_runs_on_orvyn_ai_with_a_free_allowance() {
 
     // The allowance pays first ($1), then credits.
     assert_eq!(credits::vyn_allowance_left(me).await.unwrap(), 1_000_000);
-    assert_eq!(credits::charge_vyn(me, 600_000, "anthropic/claude-haiku-5.5", 1000, 500).await.unwrap(), 0, "all free");
-    assert_eq!(credits::charge_vyn(me, 600_000, "anthropic/claude-haiku-5.5", 1000, 500).await.unwrap(), 200_000, "$0.40 free, $0.20 from credits");
+    assert_eq!(credits::charge_vyn(me, 600_000, "deepseek/deepseek-v4.1-flash", 1000, 500).await.unwrap(), 0, "all free");
+    assert_eq!(credits::charge_vyn(me, 600_000, "deepseek/deepseek-v4.1-flash", 1000, 500).await.unwrap(), 200_000, "$0.40 free, $0.20 from credits");
     assert_eq!(credits::vyn_allowance_left(me).await.unwrap(), 0);
     assert_eq!(credits::balance(me).await.unwrap(), -200_000);
     let ledger: i64 = sqlx::query_scalar("select coalesce(sum(micro_usd), 0)::bigint from credit_ledger where account_id = $1 and source = 'vyn'").bind(me).fetch_one(db).await.unwrap();
@@ -34,9 +34,9 @@ async fn vyn_runs_on_orvyn_ai_with_a_free_allowance() {
 
     // Back to Orvyn AI from another provider: no key needed, a fresh built-in key is made.
     sqlx::query("update vyn_settings set ai_provider = 'anthropic' where account_id = $1").bind(me).execute(db).await.unwrap();
-    let input: vyn::SettingsInput = serde_json::from_value(serde_json::json!({ "aiProvider": "orvyn", "aiModel": "anthropic/claude-sonnet-5.5" })).unwrap();
+    let input: vyn::SettingsInput = serde_json::from_value(serde_json::json!({ "aiProvider": "orvyn", "aiModel": "z-ai/glm-5.3" })).unwrap();
     let saved = vyn::save_settings(me, &input).await.unwrap().unwrap();
-    assert_eq!((saved["aiProvider"].as_str(), saved["aiModel"].as_str()), (Some("orvyn"), Some("anthropic/claude-sonnet-5.5")));
+    assert_eq!((saved["aiProvider"].as_str(), saved["aiModel"].as_str()), (Some("orvyn"), Some("z-ai/glm-5.3")));
     let live: i64 = sqlx::query_scalar("select count(*) from inference_keys where account_id = $1 and purpose = 'vyn' and revoked_at is null").bind(me).fetch_one(db).await.unwrap();
     assert_eq!(live, 1, "the old built-in key is revoked");
     let bad: vyn::SettingsInput = serde_json::from_value(serde_json::json!({ "aiProvider": "orvyn", "aiModel": "made-up/model" })).unwrap();

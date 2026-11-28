@@ -21,17 +21,32 @@ struct Mock {
 
 async fn models() -> impl IntoResponse {
     Json(json!({ "data": [
-        { "id": "anthropic/claude-sonnet-5.5", "name": "Anthropic: Claude Sonnet 5.5", "context_length": 1000000, "pricing": { "prompt": "0.000002", "completion": "0.00001" }, "supported_parameters": ["tools"] },
-        { "id": "anthropic/claude-haiku-5.5", "name": "Anthropic: Claude Haiku 5.5", "context_length": 200000, "pricing": { "prompt": "0.000001", "completion": "0.000005" }, "supported_parameters": ["tools"] },
-        { "id": "qwen/qwen4-max", "name": "Qwen: Qwen4 Max", "context_length": 256000, "pricing": { "prompt": "0.000001", "completion": "0.000004" } },
+        { "id": "moonshotai/kimi-k3.1-pro", "name": "MoonshotAI: Kimi K3.1 Pro", "context_length": 1000000, "pricing": { "prompt": "0.000002", "completion": "0.00001" }, "supported_parameters": ["tools"] },
+        { "id": "deepseek/deepseek-v4.1-flash", "name": "DeepSeek: DeepSeek V4.1 Flash", "context_length": 200000, "pricing": { "prompt": "0.000001", "completion": "0.000005" }, "supported_parameters": ["tools"] },
+        { "id": "google/gemma-4-31b-it", "name": "Google: Gemma 4 31B", "context_length": 1000000, "pricing": { "prompt": "0.000001", "completion": "0.000004" } },
+        { "id": "openai/gpt-oss-20b", "name": "OpenAI: gpt-oss-20b", "context_length": 200000, "pricing": { "prompt": "0.000001", "completion": "0.000004" } },
+        { "id": "qwen/qwen3.8-27b", "name": "Qwen: Qwen3.8 27B", "context_length": 256000, "pricing": { "prompt": "0.000001", "completion": "0.000004" } },
         { "id": "z-ai/glm-5.3", "name": "Z.ai: GLM 5.3", "context_length": 200000, "pricing": { "prompt": "0.000001", "completion": "0.000003" } },
+    ] }))
+}
+
+
+/// The upstream's Zero Data Retention endpoint list.
+async fn zdr() -> impl IntoResponse {
+    Json(json!({ "data": [
+        { "model_id": "moonshotai/kimi-k3.1-pro", "provider_name": "Amazon Bedrock", "tag": "amazon-bedrock", "safety_retention": false },
+        { "model_id": "moonshotai/kimi-k3.1-pro", "provider_name": "Some Cloud", "tag": "some-cloud/fp8", "safety_retention": true },
+        { "model_id": "deepseek/deepseek-v4.1-flash", "provider_name": "Google", "tag": "google-vertex/global", "safety_retention": false },
+        { "model_id": "qwen/qwen3.8-27b", "provider_name": "Alibaba", "tag": "alibaba", "safety_retention": false },
+        { "model_id": "z-ai/glm-5.3", "provider_name": "Fireworks", "tag": "fireworks", "safety_retention": false },
+        { "model_id": "google/gemma-4-31b-it", "provider_name": "Google", "tag": "google-vertex", "safety_retention": true },
     ] }))
 }
 
 async fn messages(State(m): State<Mock>, headers: axum::http::HeaderMap, Json(body): Json<Value>) -> impl IntoResponse {
     let beta = headers.get("anthropic-beta").and_then(|v| v.to_str().ok()).map(String::from);
     m.requests.lock().unwrap().push((body.clone(), beta));
-    if body["model"] == "qwen/qwen4-max" {
+    if body["model"] == "qwen/qwen3.8-27b" {
         return (axum::http::StatusCode::BAD_REQUEST, Json(json!({ "type": "error", "error": { "type": "invalid_request_error", "message": "0 endpoints out of 1 requested are available matching your guardrail restrictions and data policy" } }))).into_response();
     }
     let usage = json!({ "input_tokens": 80, "cache_read_input_tokens": 20, "output_tokens": 50, "cost": 0.0007, "cost_details": { "upstream": 0.0007 }, "is_byok": false });
@@ -53,7 +68,7 @@ async fn messages(State(m): State<Mock>, headers: axum::http::HeaderMap, Json(bo
 #[tokio::test]
 async fn vyness_keys_and_messages() {
     let mock = Mock::default();
-    let base = support::serve_forever(Router::new().route("/models", get(models)).route("/messages", post(messages)).with_state(mock.clone()));
+    let base = support::serve_forever(Router::new().route("/models", get(models)).route("/endpoints/zdr", get(zdr)).route("/messages", post(messages)).with_state(mock.clone()));
     unsafe { std::env::set_var("ORVYN_INFERENCE_UPSTREAM", &base) };
     support::test_env(&[("OPENROUTER_API_KEY", "sk-or-test")]);
     let db = support::shared_db().await;
@@ -69,7 +84,7 @@ async fn vyness_keys_and_messages() {
     let names: Vec<String> = sqlx::query_scalar("select name from inference_keys where account_id = $1 and revoked_at is null order by name").bind(ME).fetch_all(db).await.unwrap();
     assert_eq!(names, ["Vyness · laptop", "Vyness · studio-pc"]);
 
-    let ask = |stream: bool| json!({ "model": "anthropic/claude-sonnet-5.5[1m]", "max_tokens": 64000, "stream": stream, "messages": [{ "role": "user", "content": "hi" }], "provider": { "order": ["x"] }, "metadata": { "user_id": ME } });
+    let ask = |stream: bool| json!({ "model": "moonshotai/kimi-k3.1-pro[1m]", "max_tokens": 64000, "stream": stream, "messages": [{ "role": "user", "content": "hi" }], "provider": { "order": ["x"] }, "metadata": { "user_id": ME } });
 
     // No credit: refused before anything goes upstream.
     let e = inference::messages(ME, "vyness", ask(false), None, None).await.unwrap_err();
@@ -85,8 +100,8 @@ async fn vyness_keys_and_messages() {
     assert_eq!(reply["usage"], json!({ "input_tokens": 80, "cache_read_input_tokens": 20, "output_tokens": 50 }));
     assert_eq!((usage.input_tokens, usage.output_tokens, usage.micro), (100, 50, 840));
     let (sent, beta) = mock.requests.lock().unwrap().last().cloned().unwrap();
-    assert_eq!(sent["model"], "anthropic/claude-sonnet-5.5", "the [1m] hint is dropped");
-    assert!(sent.get("provider").is_none(), "routing options are dropped: {sent}");
+    assert_eq!(sent["model"], "moonshotai/kimi-k3.1-pro", "the [1m] hint is dropped");
+    assert_eq!(sent["provider"], json!({ "zdr": true, "data_collection": "deny", "allow_fallbacks": true, "ignore": ["some-cloud"] }), "zero data retention only, the caller's routing dropped");
     assert_ne!(sent["metadata"]["user_id"], ME, "the account never goes upstream");
     assert_eq!(beta.as_deref(), Some("prompt-caching-2024-07-31"));
 
@@ -108,13 +123,13 @@ async fn vyness_keys_and_messages() {
 
     // A model blocked on Orvyn's upstream account: a clear message, and it's hidden everywhere.
     let listed = |v: &Value, id: &str| v["data"].as_array().unwrap().iter().any(|m| m["id"] == id);
-    assert!(listed(&inference::openai_models().await.unwrap(), "qwen/qwen4-max"));
-    let blocked = json!({ "model": "qwen/qwen4-max", "max_tokens": 10, "messages": [{ "role": "user", "content": "hi" }] });
+    assert!(listed(&inference::openai_models().await.unwrap(), "qwen/qwen3.8-27b"));
+    let blocked = json!({ "model": "qwen/qwen3.8-27b", "max_tokens": 10, "messages": [{ "role": "user", "content": "hi" }] });
     let e = inference::messages(ME, "vyness", blocked.clone(), None, None).await.unwrap_err();
     assert_eq!(e.kind, Kind::Invalid);
     assert!(e.message.contains("isn't available on Orvyn AI") && !e.message.contains("guardrail"), "{}", e.message);
-    assert!(!listed(&inference::openai_models().await.unwrap(), "qwen/qwen4-max"));
-    assert!(inference::models_view().await.unwrap()["models"].as_array().unwrap().iter().all(|m| m["id"] != "qwen/qwen4-max"));
+    assert!(!listed(&inference::openai_models().await.unwrap(), "qwen/qwen3.8-27b"));
+    assert!(inference::models_view().await.unwrap()["models"].as_array().unwrap().iter().all(|m| m["id"] != "qwen/qwen3.8-27b"));
     let before = mock.requests.lock().unwrap().len();
     assert_eq!(inference::messages(ME, "vyness", blocked, None, None).await.unwrap_err().kind, Kind::Invalid);
     assert_eq!(mock.requests.lock().unwrap().len(), before, "a hidden model doesn't go upstream again");
@@ -124,15 +139,23 @@ async fn vyness_keys_and_messages() {
     unsafe { std::env::remove_var("ORVYN_AI_HIDDEN_MODELS") };
     assert!(listed(&inference::openai_models().await.unwrap(), "z-ai/glm-5.3"));
 
-    // The default model: Claude Haiku 5.5, until the person picks their own.
-    assert_eq!(inference::DEFAULT_MODEL, "anthropic/claude-haiku-5.5");
-    assert_eq!(inference::default_model(ME).await.unwrap(), "anthropic/claude-haiku-5.5");
-    assert_eq!(inference::set_default_model(ME, Some("anthropic/claude-sonnet-5.5")).await.unwrap(), "anthropic/claude-sonnet-5.5");
-    assert_eq!(inference::default_model(&ME.to_uppercase().replace("0X", "0x")).await.unwrap(), "anthropic/claude-sonnet-5.5");
-    assert_eq!(inference::set_default_model(ME, Some("qwen/qwen4-max")).await.unwrap_err().kind, Kind::Invalid, "not a hidden model");
+    // Models that may keep data are never served: only Safety Retention endpoints, or no ZDR endpoint.
+    let served = inference::openai_models().await.unwrap();
+    for id in ["google/gemma-4-31b-it", "openai/gpt-oss-20b"] {
+        assert!(!served["data"].as_array().unwrap().iter().any(|m| m["id"] == id), "{id} keeps data");
+        let r = json!({ "model": id, "max_tokens": 10, "messages": [{ "role": "user", "content": "hi" }] });
+        assert_eq!(inference::messages(ME, "vyness", r, None, None).await.unwrap_err().kind, Kind::Invalid);
+    }
+
+    // The default model: DeepSeek V4.1 Flash, until the person picks their own.
+    assert_eq!(inference::DEFAULT_MODEL, "deepseek/deepseek-v4.1-flash");
+    assert_eq!(inference::default_model(ME).await.unwrap(), "deepseek/deepseek-v4.1-flash");
+    assert_eq!(inference::set_default_model(ME, Some("moonshotai/kimi-k3.1-pro")).await.unwrap(), "moonshotai/kimi-k3.1-pro");
+    assert_eq!(inference::default_model(&ME.to_uppercase().replace("0X", "0x")).await.unwrap(), "moonshotai/kimi-k3.1-pro");
+    assert_eq!(inference::set_default_model(ME, Some("qwen/qwen3.8-27b")).await.unwrap_err().kind, Kind::Invalid, "not a hidden model");
     assert_eq!(inference::set_default_model(ME, Some(inference::ORVYN_MODEL)).await.unwrap_err().kind, Kind::Invalid);
-    assert_eq!(inference::default_model("0x00000000000000000000000000000000000000ff").await.unwrap(), "anthropic/claude-haiku-5.5", "per account");
-    assert_eq!(inference::set_default_model(ME, None).await.unwrap(), "anthropic/claude-haiku-5.5");
+    assert_eq!(inference::default_model("0x00000000000000000000000000000000000000ff").await.unwrap(), "deepseek/deepseek-v4.1-flash", "per account");
+    assert_eq!(inference::set_default_model(ME, None).await.unwrap(), "deepseek/deepseek-v4.1-flash");
 
     // Models Orvyn AI doesn't serve are refused.
     let bad = json!({ "model": "someone/else", "max_tokens": 10, "messages": [{ "role": "user", "content": "hi" }] });

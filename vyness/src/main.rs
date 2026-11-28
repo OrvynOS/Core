@@ -18,10 +18,11 @@ const SCOPE: &str = "openid profile inference";
 const DEFAULT_API: &str = "https://api.orvyn.cash";
 const TOP_UP: &str = "https://app.orvyn.cash/credits";
 
-/// The models each Claude Code tier uses on Orvyn AI.
-const OPUS: &str = "anthropic/claude-opus-5.5";
-const SONNET: &str = "anthropic/claude-sonnet-5.5";
-const HAIKU: &str = "anthropic/claude-haiku-5.5";
+/// The open models Claude Code's tiers use on Orvyn AI (Opus: the strongest, Haiku: the fastest).
+/// To run Claude Code on Claude itself, use your own Anthropic account with `claude` directly.
+const OPUS: &str = "moonshotai/kimi-k3.1-pro";
+const SONNET: &str = "z-ai/glm-5.3";
+const HAIKU: &str = "deepseek/deepseek-v4.1-flash";
 
 const HELP: &str = "Vyness: coding agents on Orvyn AI, paid from your Orvyn credits.
 
@@ -32,7 +33,7 @@ Usage:
   vyness aider [args...]         Start Aider on Orvyn AI
   vyness run -- <command...>     Run any command with Orvyn AI's Anthropic and OpenAI settings
   vyness env                     Print those settings as shell exports
-  vyness model [<id>|--reset]    Show or change your default model (Claude Haiku 5.5 unless you pick one)
+  vyness model [<id>|--reset]    Show or change your default model (DeepSeek V4.1 Flash unless you pick one)
   vyness models                  The models Orvyn AI serves
   vyness credits                 Your Orvyn credits
   vyness status                  Who is signed in on this computer
@@ -529,14 +530,14 @@ mod tests {
         let a = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         assert_eq!(chosen_model(&a(&["--model", "x/y", "-p", "hi"])).as_deref(), Some("x/y"));
         assert_eq!(chosen_model(&a(&["--model=x/z"])).as_deref(), Some("x/z"));
-        assert_eq!(aider_args(&a(&["src/main.rs"]), HAIKU), a(&["--model", "openai/anthropic/claude-haiku-5.5", "src/main.rs"]));
+        assert_eq!(aider_args(&a(&["src/main.rs"]), HAIKU), a(&["--model", "openai/deepseek/deepseek-v4.1-flash", "src/main.rs"]));
         assert_eq!(aider_args(&a(&["--model", "openai/x"]), SONNET), a(&["--model", "openai/x"]));
     }
 
     #[test]
     fn opencode_keeps_the_key_out_of_its_config() {
         let v = opencode_config(SONNET);
-        assert_eq!(v["model"], "orvyn/anthropic/claude-sonnet-5.5");
+        assert_eq!(v["model"], "orvyn/z-ai/glm-5.3");
         assert_eq!(v["provider"]["orvyn"]["options"]["apiKey"], "{env:ORVYN_API_KEY}");
         assert!(!v.to_string().contains("orv_sk"));
     }
